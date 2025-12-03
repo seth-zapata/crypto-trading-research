@@ -220,6 +220,50 @@ git push origin experiment-name
 
 ---
 
+## MANDATORY: End-of-Phase Git Workflow
+
+**CRITICAL: At the end of EVERY phase, complete this full workflow:**
+
+```bash
+# 1. Stage all changes
+git add .
+
+# 2. Review what's being committed
+git status
+
+# 3. Commit with conventional commit message
+git commit -m "feat(scope): Phase X complete - brief description
+
+- Key deliverable 1
+- Key deliverable 2
+- Key deliverable 3
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# 4. Push to remote (NEVER skip this step!)
+git push origin main
+
+# 5. Verify push succeeded
+git log --oneline -1
+git status
+```
+
+**Why this matters:**
+- Local commits can be lost (disk failure, accidental deletion)
+- GitHub serves as backup and enables collaboration
+- Pushing confirms the remote is in sync
+- Each phase should be a recoverable checkpoint
+
+**Checklist before moving to next phase:**
+- [ ] All changes staged (`git add .`)
+- [ ] Commit created with descriptive message
+- [ ] **Pushed to origin** (`git push origin main`)
+- [ ] Verified push succeeded (no errors)
+
+---
+
 ## Code Generation Standards
 
 ### File Structure
