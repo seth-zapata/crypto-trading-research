@@ -1,0 +1,71 @@
+# =============================================================================
+# Exchange API Configuration Template
+# =============================================================================
+# INSTRUCTIONS:
+# 1. Copy this file to 'exchanges.yaml'
+# 2. Replace placeholder values with your actual API keys
+# 3. NEVER commit exchanges.yaml to git (it's in .gitignore)
+# =============================================================================
+
+# Primary exchange (Binance recommended for liquidity)
+binance:
+  api_key: ${BINANCE_API_KEY}  # Or replace with actual key
+  api_secret: ${BINANCE_API_SECRET}
+  testnet: false  # Set to true for paper trading on testnet
+  testnet_api_key: ${BINANCE_TESTNET_API_KEY}
+  testnet_api_secret: ${BINANCE_TESTNET_API_SECRET}
+  rate_limit: true
+  options:
+    defaultType: spot  # spot, future, margin
+    adjustForTimeDifference: true
+    recvWindow: 10000
+
+# Secondary exchange (backup/additional liquidity)
+coinbase:
+  api_key: ${COINBASE_API_KEY}
+  api_secret: ${COINBASE_API_SECRET}
+  enabled: false  # Enable when ready
+  rate_limit: true
+
+# Alternative exchange
+kraken:
+  api_key: ${KRAKEN_API_KEY}
+  api_secret: ${KRAKEN_API_SECRET}
+  enabled: false
+  rate_limit: true
+
+# Trading pairs configuration
+trading_pairs:
+  primary:
+    - BTC/USDT
+    - ETH/USDT
+  secondary:
+    - SOL/USDT
+    - BNB/USDT
+  # Only trade these after Phase 4 (GNN cross-asset)
+  extended:
+    - LINK/USDT
+    - AVAX/USDT
+    - MATIC/USDT
+
+# Data fetching settings
+data_settings:
+  ohlcv_timeframes:
+    - 1h   # Primary timeframe
+    - 4h   # Secondary (for confirmation)
+    - 1d   # Daily (for regime detection)
+  historical_days: 365  # Days of historical data to maintain
+  order_book_depth: 20  # Levels of order book to fetch
+
+# WebSocket settings
+websocket:
+  enabled: true
+  reconnect_attempts: 5
+  reconnect_delay: 5  # seconds
+  ping_interval: 30
+
+# Rate limiting (requests per minute)
+rate_limits:
+  binance: 1200
+  coinbase: 600
+  kraken: 600

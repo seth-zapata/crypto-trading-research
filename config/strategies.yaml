@@ -1,0 +1,288 @@
+# =============================================================================
+# Strategy Configuration
+# =============================================================================
+# Defines how different signals are combined and when to trade
+# Based on research-validated approaches from crypto_trading_research.md
+# =============================================================================
+
+# Strategy Selection
+active_strategy: ensemble_momentum  # Start with validated approach
+
+# Available Strategies
+strategies:
+  # Phase 2: Baseline Strategy (LightGBM only)
+  baseline_momentum:
+    description: "LightGBM classifier on technical features"
+    enabled: true
+    phase: 2
+
+    models:
+      - name: lightgbm
+        weight: 1.0
+
+    signals:
+      entry:
+        min_confidence: 0.55
+        require_volume_confirm: true
+        volume_threshold: 1.2  # 20% above average
+      exit:
+        take_profit_pct: 0.05
+        stop_loss_pct: 0.03
+        max_hold_hours: 72
+
+    filters:
+      - type: volatility
+        min: 0.01  # Minimum daily volatility
+        max: 0.10  # Maximum daily volatility
+      - type: trend
+        require_trend_alignment: true
+        ma_period: 20
+
+  # Phase 3: On-Chain Enhanced Strategy
+  onchain_regime:
+    description: "LightGBM with on-chain regime filtering"
+    enabled: false  # Enable in Phase 3
+    phase: 3
+
+    models:
+      - name: lightgbm
+        weight: 1.0
+
+    # On-chain regime filter
+    regime_filter:
+      enabled: true
+      metrics:
+        - mvrv_z_score
+        - sthr_sopr
+
+      # Only trade in favorable regimes
+      bullish_conditions:
+        mvrv_z_score:
+          min: 0.5
+          max: 3.0
+        sthr_sopr:
+          min: 0.98  # Holders in profit
+
+      bearish_conditions:
+        mvrv_z_score:
+          max: 0.5
+        sthr_sopr:
+          max: 0.95
+
+    signals:
+      entry:
+        min_confidence: 0.55
+        require_regime_confirm: true
+      exit:
+        take_profit_pct: 0.08
+        stop_loss_pct: 0.04
+
+  # Phase 3: Sentiment-Volume Strategy (CARVS)
+  sentiment_volume:
+    description: "CARVS-inspired sentiment + volume confirmation"
+    enabled: false
+    phase: 3
+
+    models:
+      - name: lightgbm
+        weight: 0.6
+      - name: sentiment
+        weight: 0.4
+
+    # RVS (Relative Volume Sentiment) signal
+    rvs_signal:
+      enabled: true
+      sentiment_window_hours: 24
+      volume_window_hours: 24
+
+      # Only generate signal when aligned
+      require_alignment: true
+
+      # Thresholds
+      bullish:
+        sentiment_threshold: 0.2  # Positive sentiment
+        volume_change_threshold: 0.1  # Volume increase
+      bearish:
+        sentiment_threshold: -0.2  # Negative sentiment
+        volume_change_threshold: 0.1  # Volume increase
+
+    signals:
+      entry:
+        min_rvs_score: 0.3
+        min_confidence: 0.55
+      exit:
+        # Cash position on negative RVS (key CARVS insight)
+        exit_on_negative_rvs: true
+        take_profit_pct: 0.10
+        stop_loss_pct: 0.05
+
+  # Phase 4: Ensemble Strategy
+  ensemble_momentum:
+    description: "Ensemble of LightGBM + LSTM + GNN"
+    enabled: false
+    phase: 4
+
+    models:
+      - name: lightgbm
+        weight: 0.4
+        features: technical
+      - name: lstm
+        weight: 0.3
+        features: sequential
+      - name: gnn
+        weight: 0.3
+        features: cross_asset
+
+    ensemble:
+      method: weighted_average
+      min_agreement: 2  # At least 2/3 models must agree
+      confidence_threshold: 0.6
+
+    regime_adaptation:
+      enabled: true
+      meta_learning: true  # Use MAML for regime adaptation
+
+    signals:
+      entry:
+        min_ensemble_confidence: 0.6
+        require_majority_agreement: true
+      exit:
+        take_profit_pct: 0.12
+        stop_loss_pct: 0.05
+        trailing_stop: true
+        trailing_pct: 0.04
+
+  # Phase 5: Hierarchical RL Strategy
+  hierarchical_rl:
+    description: "Three-level RL system (Strategic/Tactical/Execution)"
+    enabled: false
+    phase: 5
+
+    # Agent coordination
+    agents:
+      strategic:
+        frequency: weekly
+        decisions:
+          - asset_allocation
+          - regime_classification
+      tactical:
+        frequency: daily
+        decisions:
+          - position_sizing
+          - entry_exit_timing
+      execution:
+        frequency: minutes
+        decisions:
+          - order_type
+          - order_timing
+
+    # Supervision from higher levels
+    hierarchy:
+      strategic_to_tactical:
+        pass_allocation_targets: true
+        pass_regime_info: true
+      tactical_to_execution:
+        pass_position_targets: true
+        pass_urgency: true
+
+    # Risk overrides (always enforced)
+    risk_overrides:
+      max_position_pct: 0.25
+      max_drawdown_pct: 0.15
+      stop_loss_always_on: true
+
+# Signal Combination Rules
+signal_combination:
+  # How to combine multiple signals
+  method: weighted_confidence  # weighted_confidence, voting, stacking
+
+  # Minimum signals required
+  min_signals: 1
+
+  # Conflict resolution
+  on_conflict: abstain  # abstain, majority, highest_confidence
+
+  # Confidence calibration
+  calibrate_confidence: true
+  calibration_method: platt_scaling
+
+# Trading Universe
+universe:
+  # Phase 1-3: Focus on majors only
+  phase_1_3:
+    assets:
+      - BTC/USDT
+      - ETH/USDT
+    reason: "Establish baseline on liquid, well-researched assets"
+
+  # Phase 4+: Expand for cross-asset modeling
+  phase_4_plus:
+    assets:
+      - BTC/USDT
+      - ETH/USDT
+      - SOL/USDT
+      - BNB/USDT
+      - LINK/USDT
+      - AVAX/USDT
+    reason: "GNN requires multiple assets for cross-asset signals"
+
+# Execution Settings
+execution:
+  # Order types
+  default_order_type: limit
+  limit_timeout_seconds: 60
+  fallback_to_market: true
+
+  # Order sizing
+  min_order_usd: 10
+  round_to_lot_size: true
+
+  # Timing
+  trade_at_candle_close: true
+  execution_window_minutes: 5
+
+# Backtesting Configuration
+backtesting:
+  # Data requirements
+  min_history_days: 365
+
+  # Validation
+  walk_forward:
+    train_days: 180
+    test_days: 30
+    step_days: 30
+    gap_days: 1  # Prevent lookahead
+
+  # Costs (realistic)
+  commission_pct: 0.001
+  slippage_pct: 0.001
+  spread_pct: 0.0005
+
+  # Metrics to track
+  metrics:
+    - total_return
+    - sharpe_ratio
+    - max_drawdown
+    - win_rate
+    - profit_factor
+    - calmar_ratio
+    - avg_trade_duration
+
+# Paper Trading Configuration
+paper_trading:
+  enabled: true
+
+  # Simulation settings
+  use_real_orderbook: true
+  simulate_slippage: true
+  simulate_partial_fills: true
+
+  # Validation period
+  min_duration_days: 14
+
+  # Success criteria before live trading
+  success_criteria:
+    min_sharpe: 1.0
+    max_drawdown: 0.15
+    min_trades: 10
+    no_system_crashes: true

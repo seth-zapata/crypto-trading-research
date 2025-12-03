@@ -1,0 +1,259 @@
+# =============================================================================
+# Model Hyperparameters Configuration
+# =============================================================================
+# Validated parameters based on research (crypto_trading_research.md)
+# Adjust based on backtesting results, not intuition
+# =============================================================================
+
+# Feature engineering settings
+features:
+  # Price-based features
+  price:
+    return_windows: [1, 2, 3, 5, 10, 20]  # Hours for return calculation
+    ma_windows: [5, 10, 20, 50, 100]      # Moving average periods
+    ema_windows: [12, 26]                  # For MACD
+
+  # Volume features
+  volume:
+    obv_enabled: true
+    vwap_enabled: true
+    volume_ma_windows: [5, 10, 20]
+
+  # Volatility features
+  volatility:
+    atr_window: 14
+    bollinger_window: 20
+    bollinger_std: 2.0
+    realized_vol_windows: [5, 10, 20, 60]
+
+  # Momentum features
+  momentum:
+    rsi_window: 14
+    macd_fast: 12
+    macd_slow: 26
+    macd_signal: 9
+    adx_window: 14
+    roc_windows: [1, 5, 10, 20]
+
+  # Microstructure (if order book available)
+  microstructure:
+    spread_enabled: true
+    amihud_window: 20
+    ofi_enabled: true  # Order Flow Imbalance
+
+# LightGBM Baseline Model (Phase 2)
+lightgbm:
+  # Training parameters
+  objective: binary  # binary classification (up/down)
+  metric: auc
+  boosting_type: gbdt
+
+  # Tree structure
+  num_leaves: 31
+  max_depth: -1  # No limit
+  min_data_in_leaf: 20
+
+  # Regularization
+  learning_rate: 0.05
+  feature_fraction: 0.8
+  bagging_fraction: 0.8
+  bagging_freq: 5
+  lambda_l1: 0.1
+  lambda_l2: 0.1
+
+  # Training settings
+  num_boost_round: 1000
+  early_stopping_rounds: 50
+  verbose: -1
+
+  # Validation
+  n_splits: 5  # TimeSeriesSplit folds
+  gap: 24      # Hours gap between train and test
+
+# LSTM Sequential Model (Phase 4)
+lstm:
+  # Architecture
+  input_window: 48      # Hours of history
+  hidden_size: 128
+  num_layers: 2
+  dropout: 0.3
+  bidirectional: false
+
+  # Training
+  batch_size: 64
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  epochs: 100
+  early_stopping_patience: 10
+
+  # Optimizer
+  optimizer: adam
+  scheduler: cosine  # cosine annealing
+  warmup_epochs: 5
+
+# GNN Cross-Asset Model (Phase 4)
+gnn:
+  # Architecture (based on MGAR/THGNN research)
+  node_features: 64
+  hidden_channels: 128
+  num_heads: 4
+  num_layers: 2
+  dropout: 0.3
+
+  # Graph construction
+  correlation_threshold: 0.3
+  correlation_window: 20  # Days for rolling correlation
+  edge_types:
+    - correlation
+    - sector
+
+  # Training
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  epochs: 100
+
+  # Temporal settings
+  temporal_window: 10  # Days of graph history
+
+# Ensemble Configuration (Phase 4)
+ensemble:
+  models:
+    - name: lightgbm
+      weight: 0.4
+    - name: lstm
+      weight: 0.3
+    - name: gnn
+      weight: 0.3
+
+  # Combination method
+  method: weighted_average  # weighted_average, stacking, voting
+
+  # Meta-learner (for stacking)
+  meta_learner:
+    type: logistic_regression
+    cv_folds: 3
+
+# Meta-Learning Configuration (Phase 4)
+meta_learning:
+  algorithm: maml  # Model-Agnostic Meta-Learning
+
+  # MAML parameters (per X-Trend research)
+  inner_lr: 0.01
+  outer_lr: 0.001
+  inner_steps: 5
+  meta_batch_size: 4
+
+  # Task construction
+  task_window: 60       # Days per task
+  support_size: 40      # Days for adaptation
+  query_size: 20        # Days for evaluation
+
+  # Regime detection for task selection
+  regime_method: hmm    # hmm, gmm, change_point
+  num_regimes: 3
+
+# Hierarchical RL Configuration (Phase 5)
+hierarchical_rl:
+  # Strategic Agent (PPO) - Asset allocation, weekly
+  strategic:
+    algorithm: ppo
+    learning_rate: 0.0003
+    n_steps: 2048
+    batch_size: 64
+    n_epochs: 10
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.2
+    ent_coef: 0.01
+    action_space: discrete  # Which assets to hold
+
+  # Tactical Agent (DDPG) - Position sizing, daily
+  tactical:
+    algorithm: ddpg
+    learning_rate: 0.001
+    buffer_size: 100000
+    batch_size: 256
+    tau: 0.005
+    gamma: 0.99
+    noise_type: ornstein_uhlenbeck
+    noise_sigma: 0.1
+    action_space: continuous  # Position sizes [0, 1]
+
+  # Execution Agent (DQN) - Order placement, minutes
+  execution:
+    algorithm: dqn
+    learning_rate: 0.0001
+    buffer_size: 50000
+    batch_size: 32
+    gamma: 0.99
+    exploration_initial: 1.0
+    exploration_final: 0.05
+    exploration_fraction: 0.1
+    target_update_interval: 1000
+    action_space: discrete  # limit, market, wait
+
+  # Training schedule
+  training:
+    total_timesteps: 1000000
+    strategic_pretrain: 100000
+    tactical_pretrain: 100000
+    joint_training_start: 200000
+    eval_freq: 10000
+
+# On-Chain Features (Phase 3)
+onchain:
+  metrics:
+    - mvrv_z_score
+    - sopr
+    - sthr_sopr  # Short-term holder SOPR
+    - exchange_netflow
+    - stablecoin_supply_ratio
+
+  # Regime thresholds (from research)
+  mvrv_thresholds:
+    extreme_top: 3.7
+    top: 2.5
+    bottom: 1.0
+    extreme_bottom: 0.5
+
+  # Update frequency
+  update_frequency: daily
+  cache_hours: 6
+
+# Sentiment Analysis (Phase 3)
+sentiment:
+  # Sources
+  sources:
+    twitter:
+      enabled: true
+      keywords: ["bitcoin", "btc", "crypto", "ethereum", "eth"]
+      min_followers: 100
+      bot_filter: true
+    reddit:
+      enabled: true
+      subreddits: ["cryptocurrency", "bitcoin", "ethereum"]
+      min_score: 5
+
+  # Processing (CARVS method)
+  model: finbert
+  engagement_weight: true
+  volume_confirmation: true  # Only use when aligned with volume
+
+  # RVS (Relative Volume Sentiment) parameters
+  rvs:
+    sentiment_window: 24  # Hours
+    volume_window: 24
+    threshold: 0.6
+
+# Regime Detection (Phase 3)
+regime:
+  method: hmm  # Hidden Markov Model
+  n_states: 3  # Bull, Bear, Sideways
+  features:
+    - return_20d
+    - volatility_20d
+    - mvrv_z_score
+
+  # Lookback for regime estimation
+  lookback_days: 90

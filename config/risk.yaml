@@ -1,0 +1,192 @@
+# =============================================================================
+# Risk Management Configuration
+# =============================================================================
+# CRITICAL: These are safety parameters - modify with extreme caution
+# Based on validated research and conservative defaults for real money trading
+# =============================================================================
+
+# Capital and Position Sizing
+capital:
+  # Starting capital (USD)
+  initial_capital: 1000  # Conservative start, scale up after validation
+
+  # Maximum capital allocation
+  max_capital: 50000  # Hard cap for this system
+
+  # Reserve ratio (never trade with 100%)
+  reserve_ratio: 0.10  # Keep 10% in cash always
+
+# Position Sizing (Kelly Criterion)
+position_sizing:
+  method: half_kelly  # full_kelly, half_kelly, fixed_fractional
+
+  # Half Kelly is more conservative (recommended)
+  kelly_multiplier: 0.5
+
+  # Fixed fractional alternative
+  fixed_fraction: 0.02  # 2% of capital per trade
+
+  # Confidence adjustment
+  min_confidence: 0.55  # Minimum model confidence to trade
+  confidence_scaling: true  # Scale position by confidence
+
+  # Volatility targeting
+  volatility_target: 0.20  # Annual volatility target
+  volatility_lookback: 20  # Days for volatility calculation
+
+  # Hard limits
+  min_position_size: 10  # Minimum USD per position
+  max_position_size_pct: 0.25  # Maximum 25% of capital per position
+
+# Portfolio Limits
+portfolio_limits:
+  # Single position limit
+  max_single_position_pct: 0.25  # 25% max in any one asset
+
+  # Concentration limits
+  max_correlated_exposure_pct: 0.50  # 50% max in correlated assets
+  correlation_threshold: 0.7  # Assets with correlation > this are "correlated"
+
+  # Leverage limits
+  max_leverage: 1.0  # NO leverage for Phase 1-4 (change to 2.0 max later)
+
+  # Exposure limits
+  max_long_exposure_pct: 1.0  # 100% max long
+  max_short_exposure_pct: 0.0  # No shorting initially
+  max_gross_exposure_pct: 1.0  # Total exposure limit
+
+# Loss Limits and Circuit Breakers
+loss_limits:
+  # Daily loss limit
+  max_daily_loss_pct: 0.05  # 5% daily loss triggers halt
+  daily_loss_action: halt_24h  # halt_24h, reduce_size, alert_only
+
+  # Drawdown circuit breaker
+  max_drawdown_pct: 0.15  # 15% drawdown triggers emergency stop
+  drawdown_action: emergency_stop  # Close all positions, halt trading
+
+  # Weekly loss limit
+  max_weekly_loss_pct: 0.10  # 10% weekly loss
+  weekly_loss_action: halt_until_review
+
+  # Consecutive losses
+  max_consecutive_losses: 5
+  consecutive_loss_action: reduce_size_50
+
+# Market Condition Circuit Breakers
+market_circuit_breakers:
+  # Flash crash detection
+  flash_crash:
+    threshold_pct: 0.10  # 10% move
+    time_window_minutes: 5
+    action: close_all_market
+
+  # Volatility spike
+  volatility_spike:
+    multiplier: 3.0  # 3x normal volatility
+    lookback_days: 20
+    action: halt_new_trades
+
+  # Exchange issues
+  exchange_connectivity:
+    max_latency_ms: 5000
+    max_failures: 3
+    action: halt_and_alert
+
+# Stop Loss and Take Profit
+trade_management:
+  # Stop loss (always use stops)
+  stop_loss:
+    enabled: true
+    default_pct: 0.05  # 5% stop loss
+    atr_multiplier: 2.0  # Alternative: 2x ATR
+    trailing_enabled: false  # Enable after Phase 6 validation
+    trailing_pct: 0.03
+
+  # Take profit
+  take_profit:
+    enabled: true
+    default_pct: 0.10  # 10% take profit
+    partial_enabled: false  # Take partial profits
+    partial_levels: [0.05, 0.08, 0.10]
+    partial_amounts: [0.33, 0.33, 0.34]
+
+  # Time-based exits
+  max_hold_hours: 168  # 7 days max hold time
+  stale_position_action: review  # review, close, alert
+
+# Slippage and Transaction Costs
+costs:
+  # Expected slippage
+  slippage_model: fixed  # fixed, volume_based, historical
+  expected_slippage_pct: 0.001  # 0.1%
+
+  # Commission
+  commission_pct: 0.001  # 0.1% (Binance default)
+
+  # Spread
+  expected_spread_pct: 0.0005  # 0.05%
+
+  # Total cost estimate (for backtesting)
+  total_cost_per_trade_pct: 0.003  # 0.3% round trip
+
+# Risk Reporting
+reporting:
+  # Real-time metrics
+  real_time_metrics:
+    - current_drawdown
+    - daily_pnl
+    - open_positions
+    - position_sizes
+    - leverage
+
+  # Daily report
+  daily_report:
+    enabled: true
+    time: "00:00"  # UTC
+    include:
+      - daily_return
+      - sharpe_rolling_30d
+      - max_drawdown
+      - win_rate
+      - trade_count
+
+  # Alerts
+  alerts:
+    channels:
+      - log  # Always log
+      # - email  # Enable after configuration
+      # - sms    # Enable for production
+
+    # Alert thresholds
+    drawdown_warning_pct: 0.10  # 10% drawdown warning
+    daily_loss_warning_pct: 0.03  # 3% daily loss warning
+
+# Mode-specific overrides
+modes:
+  paper_trading:
+    # Same limits but no real trades
+    enabled: true
+    log_all_decisions: true
+
+  live_trading:
+    # More conservative during initial deployment
+    initial_period_days: 30
+    initial_period_overrides:
+      max_single_position_pct: 0.10  # Even more conservative
+      max_daily_loss_pct: 0.03
+      fixed_fraction: 0.01
+
+# Emergency Procedures
+emergency:
+  # Emergency stop command
+  emergency_stop_enabled: true
+  emergency_stop_action:
+    - cancel_all_orders
+    - close_all_positions
+    - halt_trading
+    - send_alerts
+
+  # Recovery
+  recovery_requires_manual_restart: true
+  recovery_cooldown_hours: 24

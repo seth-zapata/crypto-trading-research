@@ -1,0 +1,252 @@
+# =============================================================================
+# Crypto Trading System - .gitignore
+# CRITICAL: This file prevents accidental commit of sensitive data
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CREDENTIALS & SECRETS (HIGHEST PRIORITY)
+# -----------------------------------------------------------------------------
+# API Keys and credentials - NEVER commit these
+config/*_keys.yaml
+config/exchanges.yaml
+config/api_keys.yaml
+config/credentials.yaml
+*.env
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+
+# API key files
+**/api_key*.txt
+**/secret*.txt
+**/credentials*.json
+**/service_account*.json
+
+# SSH and private keys
+*.pem
+*.key
+id_rsa*
+*.ppk
+
+# -----------------------------------------------------------------------------
+# DATA FILES (Too large for git, reproducible via scripts)
+# -----------------------------------------------------------------------------
+# Raw data
+data/raw/
+data/processed/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Large data exports
+*.csv
+!config/*.csv.example
+*.parquet
+*.feather
+*.hdf5
+*.h5
+
+# -----------------------------------------------------------------------------
+# TRAINED MODELS (Use model registry instead)
+# -----------------------------------------------------------------------------
+models/saved/*.pth
+models/saved/*.pt
+models/saved/*.onnx
+models/saved/*.pkl
+models/saved/*.joblib
+models/saved/*.txt
+models/saved/*.json
+!models/saved/.gitkeep
+
+# Model checkpoints
+*.ckpt
+*.weights
+checkpoints/
+
+# -----------------------------------------------------------------------------
+# LOGS & MONITORING
+# -----------------------------------------------------------------------------
+logs/
+*.log
+trading.log
+errors.log
+
+# Monitoring data
+monitoring_data/
+metrics/
+
+# -----------------------------------------------------------------------------
+# PYTHON
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# -----------------------------------------------------------------------------
+# JUPYTER NOTEBOOKS
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb
+!notebooks/*.ipynb.example
+
+# Jupyter output
+*.nbconvert.ipynb
+
+# -----------------------------------------------------------------------------
+# IDE & EDITORS
+# -----------------------------------------------------------------------------
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains (PyCharm)
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+auto-save-list
+tramp
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# -----------------------------------------------------------------------------
+# OPERATING SYSTEM
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+
+# -----------------------------------------------------------------------------
+# TEMPORARY & CACHE
+# -----------------------------------------------------------------------------
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# Cache directories
+.cache/
+cache/
+
+# Backups
+backups/
+*.backup
+
+# -----------------------------------------------------------------------------
+# DOCKER & CONTAINERS
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+.docker/
+
+# -----------------------------------------------------------------------------
+# TESTING
+# -----------------------------------------------------------------------------
+.benchmarks/
+test_output/
+test_results/
+
+# -----------------------------------------------------------------------------
+# DOCUMENTATION BUILD
+# -----------------------------------------------------------------------------
+docs/_build/
+site/
+
+# -----------------------------------------------------------------------------
+# PROJECT SPECIFIC
+# -----------------------------------------------------------------------------
+# Backtest results (can be regenerated)
+backtest_results/
+
+# Performance reports
+reports/
+
+# Temporary trading state
+state/
+positions.json
+orders.json
+
+# Redis dump
+dump.rdb
+
+# PostgreSQL
+*.sql.backup
+pg_data/
