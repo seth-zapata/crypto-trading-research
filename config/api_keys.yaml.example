@@ -2,18 +2,21 @@
 # Copy this file to api_keys.yaml and fill in your keys
 # IMPORTANT: api_keys.yaml is gitignored - never commit real keys!
 
+# CoinMetrics Community API
+# No API key needed - free public access
+coinmetrics:
+  base_url: "https://community-api.coinmetrics.io/v4"
+
 # Dune Analytics API
 # Get your key at: https://dune.com/settings/api
 dune:
   api_key: "your_dune_api_key_here"
 
-  # Optional: Pre-configured query IDs for on-chain metrics
-  # Create these queries on Dune or use community queries
+  # Public query IDs for on-chain metrics (pre-configured)
   query_ids:
-    mvrv: null        # MVRV Z-Score query
-    sopr: null        # SOPR query
-    exchange_netflow: null  # Exchange netflow query
-    nupl: null        # NUPL query
+    sopr: 5130629              # SOPR by @sagarfieldelevate
+    exchange_netflow: 1621987  # Exchange netflow
+    stablecoin_supply: 4425983 # Stablecoin supply
 
 # Reddit API (optional - only needed if using PRAW instead of public JSON)
 # Apply at: https://www.reddit.com/prefs/apps

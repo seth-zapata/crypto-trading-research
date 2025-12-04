@@ -1,8 +1,9 @@
 """
 On-Chain Data Provider
 
-Fetches on-chain metrics from Dune Analytics API for crypto market analysis.
-Key metrics: MVRV, SOPR, Exchange Netflows, Stablecoin Supply Ratio.
+Fetches on-chain metrics from multiple sources:
+- CoinMetrics Community API (free, no key needed): MVRV, Realized Cap
+- Dune Analytics: SOPR, Exchange Netflows, Stablecoin Supply
 
 Author: Claude Opus 4.5
 Date: 2024-12-04
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -23,63 +25,206 @@ class OnChainMetric:
     """Represents an on-chain metric configuration."""
     name: str
     description: str
+    source: str  # 'coinmetrics' or 'dune'
     query_id: Optional[int] = None  # Dune query ID
     interpretation: str = ""  # How to interpret the metric
 
 
-# Pre-defined on-chain metrics used for crypto analysis
-# Query IDs should be populated with actual Dune query IDs
+# Pre-defined on-chain metrics with public query IDs
 ONCHAIN_METRICS = {
     'mvrv': OnChainMetric(
+        name='MVRV',
+        description='Market Value to Realized Value ratio',
+        source='coinmetrics',
+        query_id=None,  # CoinMetrics - no query ID needed
+        interpretation='< 1.0: Undervalued. 1.0-2.5: Fair. > 3.7: Overvalued.'
+    ),
+    'mvrv_zscore': OnChainMetric(
         name='MVRV Z-Score',
-        description='Market Value to Realized Value ratio (z-scored)',
-        query_id=None,  # User needs to create/find this query on Dune
-        interpretation='High (>7): Market top likely. Low (<0): Market bottom likely.'
+        description='MVRV normalized using rolling mean/std',
+        source='coinmetrics',
+        query_id=None,
+        interpretation='< -1.0: Strong buy. -1.0 to 1.0: Neutral. > 2.0: Strong sell.'
     ),
     'sopr': OnChainMetric(
         name='SOPR',
         description='Spent Output Profit Ratio - measures profit/loss of moved coins',
-        query_id=None,
-        interpretation='>1: Coins moving at profit. <1: Coins moving at loss.'
+        source='dune',
+        query_id=5130629,  # Public query by @sagarfieldelevate
+        interpretation='< 0.97: Capitulation (buy). 0.97-1.03: Neutral. > 1.03: Profit taking (sell).'
     ),
     'exchange_netflow': OnChainMetric(
         name='Exchange Netflow',
         description='Net BTC flowing into/out of exchanges',
-        query_id=None,
+        source='dune',
+        query_id=1621987,  # Public exchange netflow query
         interpretation='Positive: Selling pressure. Negative: Accumulation.'
     ),
-    'ssr': OnChainMetric(
-        name='Stablecoin Supply Ratio',
-        description='BTC market cap / Stablecoin supply',
-        query_id=None,
-        interpretation='Low: High buying power available. High: Limited dry powder.'
+    'stablecoin_supply': OnChainMetric(
+        name='Stablecoin Supply',
+        description='Total stablecoin market cap (buying power indicator)',
+        source='dune',
+        query_id=4425983,  # Public stablecoin supply query
+        interpretation='High supply = dry powder for buying.'
     ),
     'nupl': OnChainMetric(
         name='Net Unrealized Profit/Loss',
         description='Aggregate profit/loss of all coins',
+        source='coinmetrics',
         query_id=None,
         interpretation='>0.75: Euphoria (sell). <0: Capitulation (buy).'
     ),
-    'puell_multiple': OnChainMetric(
-        name='Puell Multiple',
-        description='Daily coin issuance value / 365-day MA',
-        query_id=None,
-        interpretation='>4: Miners selling (top). <0.5: Miners capitulating (bottom).'
-    ),
 }
+
+
+class CoinMetricsProvider:
+    """
+    Fetches on-chain metrics from CoinMetrics Community API.
+
+    Free API - no key required. Rate limit: 10 requests per 6 seconds.
+
+    Example:
+        >>> provider = CoinMetricsProvider()
+        >>> mvrv_df = await provider.fetch_mvrv('btc', days_back=365)
+    """
+
+    BASE_URL = "https://community-api.coinmetrics.io/v4"
+
+    def __init__(self):
+        """Initialize CoinMetrics provider."""
+        logger.info("CoinMetricsProvider initialized (no API key needed)")
+
+    async def fetch_mvrv(
+        self,
+        asset: str = "btc",
+        days_back: int = 365
+    ) -> pd.DataFrame:
+        """
+        Fetch MVRV and related metrics from CoinMetrics.
+
+        Args:
+            asset: Asset symbol (btc, eth)
+            days_back: Number of days of history
+
+        Returns:
+            DataFrame with time, mvrv, market_cap columns
+            Note: CapRealUSD not available in free tier
+        """
+        import aiohttp
+
+        # Only request free-tier metrics (CapRealUSD is paid-only)
+        params = {
+            "assets": asset,
+            "metrics": "CapMVRVCur,CapMrktCurUSD",
+            "frequency": "1d",
+            "start_time": (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d"),
+        }
+
+        url = f"{self.BASE_URL}/timeseries/asset-metrics"
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=30) as resp:
+                    resp.raise_for_status()
+                    data = await resp.json()
+
+            rows = []
+            for item in data.get('data', []):
+                rows.append({
+                    'time': pd.to_datetime(item['time']),
+                    'mvrv': float(item.get('CapMVRVCur', 0)) if item.get('CapMVRVCur') else None,
+                    'market_cap': float(item.get('CapMrktCurUSD', 0)) if item.get('CapMrktCurUSD') else None,
+                })
+
+            df = pd.DataFrame(rows)
+
+            if len(df) > 0:
+                # Calculate MVRV Z-Score locally
+                df['mvrv_zscore'] = (
+                    (df['mvrv'] - df['mvrv'].rolling(365, min_periods=30).mean()) /
+                    df['mvrv'].rolling(365, min_periods=30).std()
+                )
+                logger.info(f"Fetched {len(df)} MVRV records from CoinMetrics")
+
+            return df
+
+        except Exception as e:
+            logger.error(f"Error fetching MVRV from CoinMetrics: {e}")
+            raise
+
+    async def fetch_metrics(
+        self,
+        asset: str = "btc",
+        metrics: List[str] = None,
+        days_back: int = 365
+    ) -> pd.DataFrame:
+        """
+        Fetch multiple metrics from CoinMetrics.
+
+        Args:
+            asset: Asset symbol
+            metrics: List of CoinMetrics metric names
+            days_back: Number of days of history
+
+        Returns:
+            DataFrame with time and requested metrics
+        """
+        import aiohttp
+
+        if metrics is None:
+            # Only free-tier metrics (CapRealUSD and NUPLAll are paid-only)
+            metrics = ["CapMVRVCur", "CapMrktCurUSD"]
+
+        params = {
+            "assets": asset,
+            "metrics": ",".join(metrics),
+            "frequency": "1d",
+            "start_time": (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d"),
+        }
+
+        url = f"{self.BASE_URL}/timeseries/asset-metrics"
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=30) as resp:
+                    resp.raise_for_status()
+                    data = await resp.json()
+
+            rows = []
+            for item in data.get('data', []):
+                row = {'time': pd.to_datetime(item['time'])}
+                for metric in metrics:
+                    val = item.get(metric)
+                    row[metric] = float(val) if val else None
+                rows.append(row)
+
+            df = pd.DataFrame(rows)
+            logger.info(f"Fetched {len(df)} records for {len(metrics)} metrics from CoinMetrics")
+            return df
+
+        except Exception as e:
+            logger.error(f"Error fetching metrics from CoinMetrics: {e}")
+            raise
 
 
 class OnChainDataProvider:
     """
     Fetches on-chain metrics from Dune Analytics.
 
-    Dune Analytics provides SQL-queryable blockchain data. Users create queries
-    on the Dune platform and this provider executes them via API.
+    Dune Analytics provides SQL-queryable blockchain data. Uses public
+    community queries for SOPR, Exchange Netflows, and Stablecoin Supply.
 
     Example:
         >>> provider = OnChainDataProvider(api_key='your_key')
-        >>> mvrv_data = await provider.fetch_metric('mvrv', query_id=12345)
+        >>> sopr_data = await provider.fetch_sopr()
     """
+
+    # Default public query IDs
+    DEFAULT_QUERY_IDS = {
+        'sopr': 5130629,
+        'exchange_netflow': 1621987,
+        'stablecoin_supply': 4425983,
+    }
 
     def __init__(self, api_key: str, config: Optional[Dict[str, Any]] = None):
         """
@@ -99,10 +244,13 @@ class OnChainDataProvider:
         self.dune = DuneClient(api_key)
         self.config = config or {}
 
-        # Allow config to override default query IDs
-        self.query_ids = self.config.get('query_ids', {})
+        # Merge config query IDs with defaults
+        self.query_ids = {**self.DEFAULT_QUERY_IDS, **self.config.get('query_ids', {})}
 
-        logger.info("OnChainDataProvider initialized")
+        # Also initialize CoinMetrics provider
+        self.coinmetrics = CoinMetricsProvider()
+
+        logger.info(f"OnChainDataProvider initialized with query_ids: {self.query_ids}")
 
     def get_metric_info(self, metric_name: str) -> Optional[OnChainMetric]:
         """Get information about a metric."""
@@ -111,6 +259,49 @@ class OnChainDataProvider:
     def list_available_metrics(self) -> List[str]:
         """List all defined metrics."""
         return list(ONCHAIN_METRICS.keys())
+
+    async def fetch_sopr(self) -> pd.DataFrame:
+        """
+        Fetch SOPR data from Dune (query 5130629).
+
+        Returns:
+            DataFrame with SOPR time series
+        """
+        query_id = self.query_ids.get('sopr', 5130629)
+        return await self.fetch_latest_results(query_id, 'sopr')
+
+    async def fetch_exchange_netflow(self) -> pd.DataFrame:
+        """
+        Fetch exchange netflow data from Dune (query 1621987).
+
+        Returns:
+            DataFrame with exchange netflow time series
+        """
+        query_id = self.query_ids.get('exchange_netflow', 1621987)
+        return await self.fetch_latest_results(query_id, 'exchange_netflow')
+
+    async def fetch_stablecoin_supply(self) -> pd.DataFrame:
+        """
+        Fetch stablecoin supply data from Dune (query 4425983).
+
+        Returns:
+            DataFrame with stablecoin supply time series
+        """
+        query_id = self.query_ids.get('stablecoin_supply', 4425983)
+        return await self.fetch_latest_results(query_id, 'stablecoin_supply')
+
+    async def fetch_mvrv(self, asset: str = "btc", days_back: int = 365) -> pd.DataFrame:
+        """
+        Fetch MVRV data from CoinMetrics (free API).
+
+        Args:
+            asset: Asset symbol (btc, eth)
+            days_back: Number of days of history
+
+        Returns:
+            DataFrame with MVRV and Z-Score
+        """
+        return await self.coinmetrics.fetch_mvrv(asset, days_back)
 
     async def fetch_metric(
         self,
@@ -183,7 +374,7 @@ class OnChainDataProvider:
         Returns:
             DataFrame with cached results
         """
-        logger.info(f"Fetching latest cached results for {metric_name}")
+        logger.info(f"Fetching latest cached results for {metric_name} (query_id={query_id})")
 
         try:
             results = self.dune.get_latest_result(query_id)
@@ -200,25 +391,30 @@ class OnChainDataProvider:
             logger.error(f"Error fetching cached {metric_name}: {e}")
             raise
 
-    async def fetch_multiple_metrics(
-        self,
-        metrics: Dict[str, int]
-    ) -> Dict[str, pd.DataFrame]:
+    async def fetch_all_metrics(self) -> Dict[str, pd.DataFrame]:
         """
-        Fetch multiple metrics.
-
-        Args:
-            metrics: Dict mapping metric_name -> query_id
+        Fetch all available on-chain metrics.
 
         Returns:
             Dict mapping metric_name -> DataFrame
         """
         results = {}
 
-        for metric_name, query_id in metrics.items():
+        # Fetch from CoinMetrics
+        try:
+            mvrv_df = await self.fetch_mvrv()
+            results['mvrv'] = mvrv_df
+        except Exception as e:
+            logger.warning(f"Failed to fetch MVRV: {e}")
+            results['mvrv'] = pd.DataFrame()
+
+        # Fetch from Dune
+        for metric_name in ['sopr', 'exchange_netflow', 'stablecoin_supply']:
             try:
-                df = await self.fetch_metric(metric_name, query_id=query_id)
-                results[metric_name] = df
+                query_id = self.query_ids.get(metric_name)
+                if query_id:
+                    df = await self.fetch_latest_results(query_id, metric_name)
+                    results[metric_name] = df
             except Exception as e:
                 logger.warning(f"Failed to fetch {metric_name}: {e}")
                 results[metric_name] = pd.DataFrame()
@@ -233,17 +429,25 @@ class OnChainSignalGenerator:
     Uses thresholds from academic research to classify market conditions.
     """
 
-    # Thresholds for signal generation (from research)
+    # Updated thresholds based on research
     THRESHOLDS = {
         'mvrv': {
-            'extreme_high': 7.0,   # Strong sell signal
-            'high': 3.0,          # Caution - overvalued
-            'low': 0.0,           # Caution - undervalued
-            'extreme_low': -0.5,  # Strong buy signal
+            'strong_sell': 3.7,   # Overvalued - strong sell
+            'sell': 2.5,          # Caution - reduce exposure
+            'buy': 1.0,           # Undervalued - accumulate
+            'strong_buy': 0.8,    # Strong buy signal
+        },
+        'mvrv_zscore': {
+            'strong_sell': 2.0,   # Strong sell signal
+            'sell': 1.0,          # Caution
+            'buy': -1.0,          # Accumulation zone
+            'strong_buy': -1.5,   # Strong buy signal
         },
         'sopr': {
-            'profit_taking': 1.05,  # Coins moving at profit
-            'capitulation': 0.95,   # Coins moving at loss
+            'profit_taking': 1.03,  # Coins moving at profit
+            'neutral_high': 1.03,
+            'neutral_low': 0.97,
+            'capitulation': 0.97,   # Coins moving at loss
         },
         'nupl': {
             'euphoria': 0.75,     # Extreme greed
@@ -263,52 +467,53 @@ class OnChainSignalGenerator:
         """
         self.provider = provider
 
-    def interpret_mvrv(self, mvrv_zscore: float) -> Dict[str, Any]:
+    def interpret_mvrv(self, mvrv: float, use_zscore: bool = False) -> Dict[str, Any]:
         """
-        Interpret MVRV Z-Score.
+        Interpret MVRV or MVRV Z-Score.
 
         Args:
-            mvrv_zscore: Current MVRV Z-Score value
+            mvrv: Current MVRV or MVRV Z-Score value
+            use_zscore: Whether the value is a Z-Score
 
         Returns:
             Dict with signal (-1 to 1), regime, and description
         """
-        thresholds = self.THRESHOLDS['mvrv']
+        thresholds = self.THRESHOLDS['mvrv_zscore'] if use_zscore else self.THRESHOLDS['mvrv']
 
-        if mvrv_zscore >= thresholds['extreme_high']:
+        if mvrv >= thresholds['strong_sell']:
             return {
                 'signal': -1.0,
                 'regime': 'extreme_overvaluation',
                 'description': 'Historical top territory - strong sell signal',
-                'value': mvrv_zscore
+                'value': mvrv
             }
-        elif mvrv_zscore >= thresholds['high']:
+        elif mvrv >= thresholds['sell']:
             return {
                 'signal': -0.5,
                 'regime': 'overvaluation',
                 'description': 'Market overvalued - reduce exposure',
-                'value': mvrv_zscore
+                'value': mvrv
             }
-        elif mvrv_zscore <= thresholds['extreme_low']:
+        elif mvrv <= thresholds['strong_buy']:
             return {
                 'signal': 1.0,
                 'regime': 'extreme_undervaluation',
                 'description': 'Historical bottom territory - strong buy signal',
-                'value': mvrv_zscore
+                'value': mvrv
             }
-        elif mvrv_zscore <= thresholds['low']:
+        elif mvrv <= thresholds['buy']:
             return {
                 'signal': 0.5,
                 'regime': 'undervaluation',
                 'description': 'Market undervalued - accumulation zone',
-                'value': mvrv_zscore
+                'value': mvrv
             }
         else:
             return {
                 'signal': 0.0,
                 'regime': 'fair_value',
                 'description': 'Market fairly valued - neutral',
-                'value': mvrv_zscore
+                'value': mvrv
             }
 
     def interpret_sopr(self, sopr: float) -> Dict[str, Any]:
@@ -438,6 +643,64 @@ class OnChainSignalGenerator:
             'description': f"Combined on-chain signal: {overall_regime}",
         }
 
+    async def get_current_signals(self) -> Dict[str, Any]:
+        """
+        Fetch latest data and generate current signals.
+
+        Returns:
+            Dict with all signals and combined result
+        """
+        signals = {}
+
+        # Fetch MVRV from CoinMetrics
+        try:
+            mvrv_df = await self.provider.fetch_mvrv(days_back=30)
+            if len(mvrv_df) > 0:
+                latest_mvrv = mvrv_df.iloc[-1]['mvrv']
+                signals['mvrv'] = self.interpret_mvrv(latest_mvrv)
+        except Exception as e:
+            logger.warning(f"Could not fetch MVRV: {e}")
+
+        # Fetch SOPR from Dune
+        try:
+            sopr_df = await self.provider.fetch_sopr()
+            if len(sopr_df) > 0:
+                # Find the SOPR column (may vary by query)
+                sopr_col = next((c for c in sopr_df.columns if 'sopr' in c.lower()), None)
+                if sopr_col:
+                    latest_sopr = float(sopr_df.iloc[-1][sopr_col])
+                    signals['sopr'] = self.interpret_sopr(latest_sopr)
+        except Exception as e:
+            logger.warning(f"Could not fetch SOPR: {e}")
+
+        # Fetch Exchange Netflow from Dune
+        try:
+            netflow_df = await self.provider.fetch_exchange_netflow()
+            if len(netflow_df) > 0:
+                # Find the netflow column
+                netflow_col = next((c for c in netflow_df.columns if 'netflow' in c.lower() or 'net' in c.lower()), None)
+                if netflow_col:
+                    latest_netflow = float(netflow_df.iloc[-1][netflow_col])
+                    signals['exchange_netflow'] = self.interpret_exchange_netflow(latest_netflow)
+        except Exception as e:
+            logger.warning(f"Could not fetch exchange netflow: {e}")
+
+        # Combine signals
+        if signals:
+            combined = self.combine_signals(signals)
+        else:
+            combined = {
+                'signal': 0.0,
+                'regime': 'unknown',
+                'description': 'No on-chain data available'
+            }
+
+        return {
+            'signals': signals,
+            'combined': combined,
+            'timestamp': datetime.now().isoformat()
+        }
+
 
 if __name__ == "__main__":
     # Demo of signal interpretation (no API call)
@@ -452,14 +715,19 @@ if __name__ == "__main__":
 
     generator = OnChainSignalGenerator(MockProvider())
 
-    # Demo MVRV interpretations
-    print("MVRV Z-Score Interpretations:")
-    for mvrv in [8.0, 4.0, 1.5, -0.3, -1.0]:
-        result = generator.interpret_mvrv(mvrv)
+    # Demo MVRV interpretations (updated thresholds)
+    print("MVRV Interpretations (raw value):")
+    for mvrv in [4.0, 3.0, 2.0, 1.5, 1.0, 0.7]:
+        result = generator.interpret_mvrv(mvrv, use_zscore=False)
         print(f"  MVRV={mvrv:>5.1f}: {result['regime']:>25} | signal={result['signal']:>5.2f}")
 
+    print("\nMVRV Z-Score Interpretations:")
+    for zscore in [2.5, 1.5, 0.5, -0.5, -1.2, -2.0]:
+        result = generator.interpret_mvrv(zscore, use_zscore=True)
+        print(f"  Z-Score={zscore:>5.1f}: {result['regime']:>25} | signal={result['signal']:>5.2f}")
+
     print("\nSOPR Interpretations:")
-    for sopr in [1.1, 1.02, 0.98, 0.92]:
+    for sopr in [1.1, 1.02, 0.99, 0.95]:
         result = generator.interpret_sopr(sopr)
         print(f"  SOPR={sopr:>5.2f}: {result['regime']:>15} | signal={result['signal']:>5.2f}")
 
@@ -471,8 +739,8 @@ if __name__ == "__main__":
     # Combined signal
     print("\nCombined Signal Example:")
     signals = {
-        'mvrv': generator.interpret_mvrv(3.5),
-        'sopr': generator.interpret_sopr(1.03),
+        'mvrv': generator.interpret_mvrv(1.8),
+        'sopr': generator.interpret_sopr(1.01),
         'exchange_netflow': generator.interpret_exchange_netflow(-5000),
     }
     combined = generator.combine_signals(signals)

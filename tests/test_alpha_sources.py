@@ -225,8 +225,8 @@ class TestOnChainSignals:
         assert result['regime'] == 'extreme_overvaluation'
 
     def test_mvrv_high(self, generator):
-        """Test MVRV interpretation at high."""
-        result = generator.interpret_mvrv(4.0)
+        """Test MVRV interpretation at high (between sell and strong_sell thresholds)."""
+        result = generator.interpret_mvrv(3.0)  # 2.5 < 3.0 < 3.7
 
         assert result['signal'] == -0.5
         assert result['regime'] == 'overvaluation'
@@ -239,8 +239,8 @@ class TestOnChainSignals:
         assert result['regime'] == 'extreme_undervaluation'
 
     def test_mvrv_low(self, generator):
-        """Test MVRV interpretation at low."""
-        result = generator.interpret_mvrv(-0.3)
+        """Test MVRV interpretation at low (between buy and strong_buy thresholds)."""
+        result = generator.interpret_mvrv(0.9)  # 0.8 < 0.9 <= 1.0
 
         assert result['signal'] == 0.5
         assert result['regime'] == 'undervaluation'
@@ -408,7 +408,8 @@ class TestOnChainMetrics:
 
     def test_all_metrics_defined(self):
         """Test all expected metrics are defined."""
-        expected = ['mvrv', 'sopr', 'exchange_netflow', 'ssr', 'nupl', 'puell_multiple']
+        # Updated to match current implementation (ssr, puell_multiple removed - no free data source)
+        expected = ['mvrv', 'mvrv_zscore', 'sopr', 'exchange_netflow', 'stablecoin_supply', 'nupl']
 
         for metric in expected:
             assert metric in ONCHAIN_METRICS
