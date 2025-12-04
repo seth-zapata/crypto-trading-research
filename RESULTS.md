@@ -365,11 +365,35 @@ This matches signal frequency (monthly rebalance, not daily trading).
 3. **Better Sharpe:** 1.00 vs 0.68
 4. **Detected all crashes:** 3.3 days avg lead time
 
-### Caveats
+### Caveats (Original Model)
 
 - Classification accuracy is poor (45%) - model over-predicts RISK_OFF
 - Works as general de-risking, may not generalize to all periods
 - Oracle (perfect knowledge) underperforms B&H - regime labels may need refinement
+
+### Calibration Fix (Dec 2024)
+
+**Problem:** GNN predicted RISK_OFF 15.2x more often than actual (22.7% vs 1.5%)
+
+**Fixes Tested:**
+
+| Approach | Return | Sharpe | Max DD | RISK_OFF % |
+|----------|--------|--------|--------|------------|
+| Buy & Hold | +33.8% | 0.68 | 32.1% | - |
+| Original GNN (broken) | +46.3% | 0.89 | 25.2% | 14.0% |
+| Threshold 0.50 | +35.9% | 0.71 | 28.1% | 1.0% |
+| Continuous sizing | +30.7% | 0.75 | **21.8%** | - |
+| **Retrained (weighted)** | **+54.6%** | **0.95** | 26.8% | **7.7%** |
+| Simple vol rule | +19.6% | 0.50 | 32.1% | 13.7% |
+
+**Winner: Retrained with class weights [1.0, 2.0, 8.0]**
+
+- RISK_OFF prediction rate: 7.7% (target 3-8%) ✓
+- Return: +54.6% (target >40%) ✓
+- Sharpe: 0.95 (beats vol rule 0.50) ✓
+- Max DD: 26.8% (target <25%) ✗ (close)
+
+**Key Insight:** Higher weight on RISK_OFF class (8.0) forces model to be very confident before predicting defensive stance. This eliminates over-conservatism while maintaining crash detection.
 
 ### Files Created
 
