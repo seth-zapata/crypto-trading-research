@@ -1,0 +1,8 @@
+{
+  "risk_on_weight": 0.85,
+  "caution_weight": 0.65,
+  "risk_off_weight": 0.3,
+  "validation_return": 19.37453076947464,
+  "validation_sharpe": 0.5408685875655911,
+  "validation_max_dd": 23.93108957250896
+}
