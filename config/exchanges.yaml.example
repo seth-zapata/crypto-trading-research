@@ -27,11 +27,8 @@ coinbase:
   api_key: ${COINBASE_API_KEY}
   api_secret: ${COINBASE_API_SECRET}
   # IMPORTANT: API secret is an EC private key in PEM format.
-  # If stored in .env without newlines, code must restore PEM format:
-  #   -----BEGIN EC PRIVATE KEY-----
-  #   [base64 content in 64-char lines]
-  #   -----END EC PRIVATE KEY-----
-  # See data/ingestion/exchanges.py fix_pem_format() function
+  # .env files store \n as literal text, must convert in code:
+  #   api_secret.replace('\\n', '\n')
   enabled: true
   rate_limit: true
 
