@@ -17,12 +17,36 @@ from models.predictors.walk_forward import (
     time_series_train_test_split
 )
 
+from models.predictors.regime_classifier import (
+    RegimeClassifier,
+    RegimeClassification,
+    MarketRegime,
+    RegimeHistory,
+)
+
+from models.predictors.alpha_combiner import (
+    AlphaCombiner,
+    AlphaSignal,
+    CombinedSignal,
+    create_alpha_pipeline,
+)
+
 __all__ = [
+    # Phase 2 - LightGBM
     'LightGBMPredictor',
     'create_target_variable',
     'prepare_features_and_target',
     'WalkForwardValidator',
     'WalkForwardResult',
     'WalkForwardSplit',
-    'time_series_train_test_split'
+    'time_series_train_test_split',
+    # Phase 3 - Regime & Alpha
+    'RegimeClassifier',
+    'RegimeClassification',
+    'MarketRegime',
+    'RegimeHistory',
+    'AlphaCombiner',
+    'AlphaSignal',
+    'CombinedSignal',
+    'create_alpha_pipeline',
 ]

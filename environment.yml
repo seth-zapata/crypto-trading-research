@@ -84,10 +84,11 @@ dependencies:
       - ta>=0.11  # Pure Python TA library (easier install than TA-Lib)
       # - pandas-ta>=0.3  # Commented out - compatibility issues, ta library sufficient
 
-      # PyTorch Geometric (Graph Neural Networks)
-      - torch-geometric>=2.4
-      - torch-scatter
-      - torch-sparse
+      # PyTorch Geometric (Graph Neural Networks) - Phase 4-5
+      # Note: Requires special install order, added separately when needed
+      # - torch-geometric>=2.4
+      # - torch-scatter
+      # - torch-sparse
 
       # Reinforcement Learning
       - stable-baselines3>=2.1
@@ -98,16 +99,16 @@ dependencies:
       - transformers>=4.35
       - tokenizers
 
-      # Specialized ML
-      - tigramite>=5.2  # Causal discovery
-      - learn2learn>=0.2  # Meta-learning
+      # Specialized ML - Phase 4-5
+      # - tigramite>=5.2  # Causal discovery - add when needed
+      # - learn2learn>=0.2  # Meta-learning - requires special build, add when needed
 
-      # Social Media APIs (for sentiment - Phase 3)
-      # - tweepy>=4.14
+      # On-Chain Data (Phase 3)
+      - dune-client>=1.7  # Dune Analytics API for MVRV, SOPR, netflows
+
+      # Note: Reddit sentiment uses public .json endpoints (no auth required)
+      # PRAW commented out - requires API approval since Nov 2025
       # - praw>=7.7
-
-      # On-Chain Data Providers (Phase 3)
-      # - glassnode  # Requires API key
 
       # Monitoring
       - streamlit>=1.28

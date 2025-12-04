@@ -1,0 +1,30 @@
+# API Keys Configuration Template
+# Copy this file to api_keys.yaml and fill in your keys
+# IMPORTANT: api_keys.yaml is gitignored - never commit real keys!
+
+# Dune Analytics API
+# Get your key at: https://dune.com/settings/api
+dune:
+  api_key: "your_dune_api_key_here"
+
+  # Optional: Pre-configured query IDs for on-chain metrics
+  # Create these queries on Dune or use community queries
+  query_ids:
+    mvrv: null        # MVRV Z-Score query
+    sopr: null        # SOPR query
+    exchange_netflow: null  # Exchange netflow query
+    nupl: null        # NUPL query
+
+# Reddit API (optional - only needed if using PRAW instead of public JSON)
+# Apply at: https://www.reddit.com/prefs/apps
+reddit:
+  client_id: null
+  client_secret: null
+  user_agent: "crypto-trading-research/1.0"
+
+# Exchange API (for live trading - Phase 6)
+exchanges:
+  coinbase:
+    api_key: null
+    api_secret: null
+    sandbox: true  # Use sandbox for testing
