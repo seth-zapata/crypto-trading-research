@@ -220,50 +220,6 @@ git push origin experiment-name
 
 ---
 
-## MANDATORY: End-of-Phase Git Workflow
-
-**CRITICAL: At the end of EVERY phase, complete this full workflow:**
-
-```bash
-# 1. Stage all changes
-git add .
-
-# 2. Review what's being committed
-git status
-
-# 3. Commit with conventional commit message
-git commit -m "feat(scope): Phase X complete - brief description
-
-- Key deliverable 1
-- Key deliverable 2
-- Key deliverable 3
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
-
-# 4. Push to remote (NEVER skip this step!)
-git push origin main
-
-# 5. Verify push succeeded
-git log --oneline -1
-git status
-```
-
-**Why this matters:**
-- Local commits can be lost (disk failure, accidental deletion)
-- GitHub serves as backup and enables collaboration
-- Pushing confirms the remote is in sync
-- Each phase should be a recoverable checkpoint
-
-**Checklist before moving to next phase:**
-- [ ] All changes staged (`git add .`)
-- [ ] Commit created with descriptive message
-- [ ] **Pushed to origin** (`git push origin main`)
-- [ ] Verified push succeeded (no errors)
-
----
-
 ## Code Generation Standards
 
 ### File Structure
@@ -964,6 +920,468 @@ Before deploying:
 
 ---
 
+## Notebook Testing Requirements
+
+**CRITICAL: You MUST test every notebook you create before declaring a phase complete.**
+
+**EVEN MORE CRITICAL: If a notebook fails, DEBUG AND FIX IT YOURSELF. Do NOT ask the user for help unless you've exhausted all options.**
+
+### Autonomous Testing and Debugging Workflow
+
+After creating a notebook, follow this loop until it works:
+
+1. **Execute the notebook**
+2. **If it fails → DEBUG AND FIX IT IMMEDIATELY**
+3. **Re-test**
+4. **Repeat until it passes**
+5. **Only then report completion**
+
+### Testing Loop (Fully Autonomous)
+
+```bash
+# Loop: Test → Fix → Retest → Fix → ... → Success
+while true; do
+  # Attempt execution
+  jupyter nbconvert --to notebook --execute \
+    --ExecutePreprocessor.timeout=600 \
+    notebooks/phase1/01_data_validation.ipynb \
+    --output 01_data_validation_executed.ipynb
+  
+  if [ $? -eq 0 ]; then
+    echo "✓ Notebook executed successfully"
+    break
+  else
+    echo "✗ Notebook failed - analyzing error and fixing..."
+    # Analyze the error, fix the notebook, try again
+  fi
+done
+
+# Generate HTML report
+jupyter nbconvert --to html \
+  notebooks/phase1/01_data_validation_executed.ipynb \
+  --output ../../reports/01_data_validation.html
+
+# Validate outputs
+python scripts/validate_notebook_outputs.py \
+  notebooks/phase1/01_data_validation_executed.ipynb
+```
+
+### Common Errors and AUTONOMOUS Fixes
+
+**DO NOT ASK THE USER. FIX IT YOURSELF.**
+
+#### Error 1: Missing Import
+```
+Error: ImportError: No module named 'talib'
+```
+
+**Your Action (automatic):**
+1. Add to `requirements.txt`: `TA-Lib==0.4.28`
+2. Add to `environment.yml`: `- ta-lib=0.4.28`
+3. Note in commit: "Added missing talib dependency"
+4. Re-run notebook test
+5. If still fails, try alternative library (e.g., pandas_ta)
+
+**DO NOT ASK:** "Should I add talib to requirements?"  
+**JUST DO IT.**
+
+#### Error 2: File Not Found
+```
+Error: FileNotFoundError: data/ohlcv.csv not found
+```
+
+**Your Action (automatic):**
+1. Check if data exists: `ls data/`
+2. If missing, generate sample data for the notebook
+3. Or update notebook to check existence first:
+   ```python
+   if not Path('data/ohlcv.csv').exists():
+       print("⚠️ No data found. Run: python scripts/backfill_data.py")
+   ```
+4. Re-run notebook test
+
+**DO NOT ASK:** "There's no data, should I generate sample data?"  
+**JUST FIX IT.**
+
+#### Error 3: Database Connection Failed
+```
+Error: psycopg2.OperationalError: could not connect to server
+```
+
+**Your Action (automatic):**
+1. Add connection check at top of notebook:
+   ```python
+   try:
+       conn = psycopg2.connect(...)
+   except psycopg2.OperationalError:
+       print("⚠️ Database not running. Start with: docker-compose up -d")
+       print("Using sample data for demonstration...")
+       # Use mock/sample data instead
+   ```
+2. Re-run notebook test
+
+**DO NOT ASK:** "Database isn't running, what should I do?"  
+**HANDLE IT GRACEFULLY.**
+
+#### Error 4: Missing Column
+```
+Error: KeyError: 'feature_123' not found in DataFrame
+```
+
+**Your Action (automatic):**
+1. Check what features actually exist
+2. Update notebook to use existing features
+3. Or generate the missing feature in the notebook
+4. Re-run notebook test
+
+**DO NOT ASK:** "This feature is missing, should I remove it?"  
+**FIX THE NOTEBOOK.**
+
+#### Error 5: Empty DataFrame
+```
+Error: ValueError: cannot plot empty DataFrame
+```
+
+**Your Action (automatic):**
+1. Add check before plotting:
+   ```python
+   if df.empty:
+       print("⚠️ No data available. This notebook requires backfilled data.")
+   else:
+       df.plot()
+   ```
+2. Re-run notebook test
+
+**DO NOT ASK:** "The DataFrame is empty, should I handle this?"  
+**YES, HANDLE IT.**
+
+### Autonomous Debugging Strategy
+
+When a notebook fails, follow this systematic approach:
+
+**Step 1: Read the error carefully**
+```python
+# Error tells you exactly what's wrong
+# ImportError → missing library
+# KeyError → missing column/key
+# FileNotFoundError → missing file
+# ConnectionError → service not running
+```
+
+**Step 2: Determine the fix**
+- Missing dependency? → Add to requirements.txt
+- Missing data? → Generate sample or add graceful handling
+- Wrong path? → Fix the path
+- Service down? → Add fallback behavior
+
+**Step 3: Implement the fix**
+- Edit the notebook
+- Or edit requirements.txt
+- Or create missing files
+- Whatever is needed to make it work
+
+**Step 4: Re-test immediately**
+```bash
+jupyter nbconvert --execute notebooks/phase1/01_data_validation.ipynb
+```
+
+**Step 5: Repeat until success**
+- If still fails, analyze NEW error
+- Fix that one
+- Re-test
+- Continue until notebook executes cleanly
+
+### When to Actually Ask the User
+
+**ONLY ask the user if:**
+
+1. **Fundamental design decision needed**
+   ```
+   "The notebook needs real exchange data to work. Options:
+   A) Use paper trading API (free but requires signup)
+   B) Use sample CSV data (immediate but not real-time)
+   Which do you prefer?"
+   ```
+
+2. **Costs money**
+   ```
+   "To make this notebook work with live data, we need Glassnode API ($29/mo).
+   Should I use free CryptoQuant instead?"
+   ```
+
+3. **Security concern**
+   ```
+   "This notebook would need your actual API key to test. 
+   Should I use mock data instead?"
+   ```
+
+4. **Genuinely stuck after multiple attempts**
+   ```
+   "I've tried 5 different approaches to fix this notebook error:
+   1. Added missing imports
+   2. Switched to alternative library
+   3. Used mock data
+   4. Simplified the plotting code
+   5. Checked all paths
+   
+   The error persists: [specific error]
+   I need guidance on how to proceed."
+   ```
+
+**DO NOT ASK about:**
+- ❌ "Should I fix this error?" → YES, FIX IT
+- ❌ "The notebook failed, what should I do?" → DEBUG IT
+- ❌ "Is it okay to add this library?" → IF NEEDED, ADD IT
+- ❌ "Can I use sample data?" → YES, USE IT
+- ❌ "Should I add error handling?" → YES, ADD IT
+
+### Notebook Self-Healing Pattern
+
+Build notebooks to be resilient from the start:
+
+```python
+# GOOD: Self-healing notebook pattern
+
+import sys
+from pathlib import Path
+
+# 1. Add project root to path
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# 2. Try imports with fallbacks
+try:
+    import talib
+    USE_TALIB = True
+except ImportError:
+    print("⚠️ TA-Lib not installed. Using pandas alternatives.")
+    import pandas_ta as ta
+    USE_TALIB = False
+
+# 3. Check data exists
+DATA_FILE = PROJECT_ROOT / 'data' / 'processed' / 'features.csv'
+if not DATA_FILE.exists():
+    print(f"⚠️ Data file not found: {DATA_FILE}")
+    print("Generating sample data for demonstration...")
+    # Generate sample data
+    df = generate_sample_data()
+else:
+    df = pd.read_csv(DATA_FILE)
+
+# 4. Check database connection
+try:
+    conn = psycopg2.connect(...)
+    print("✓ Database connected")
+except psycopg2.OperationalError:
+    print("⚠️ Database not available. Using cached data.")
+    df = pd.read_csv(CACHE_FILE)
+
+# 5. Graceful degradation
+if df.empty:
+    print("⚠️ No data available.")
+    print("Run: python scripts/backfill_data.py --symbol BTC/USDT --days 7")
+else:
+    # Do analysis
+    df.plot()
+```
+
+This way, notebooks rarely fail - they adapt to what's available.
+
+### Validation Script
+
+Create `scripts/validate_notebook_outputs.py`:
+
+```python
+"""
+Validate that notebooks executed successfully and produced expected outputs.
+"""
+
+import json
+import sys
+from pathlib import Path
+
+def validate_notebook(notebook_path: Path) -> bool:
+    """
+    Check that notebook executed and has expected outputs.
+    
+    Returns True if validation passes.
+    """
+    with open(notebook_path) as f:
+        nb = json.load(f)
+    
+    errors = []
+    has_plots = False
+    has_output = False
+    
+    for cell in nb['cells']:
+        # Check for execution errors
+        if cell['cell_type'] == 'code':
+            for output in cell.get('outputs', []):
+                if output.get('output_type') == 'error':
+                    errors.append(output.get('evalue', 'Unknown error'))
+                
+                # Check for plots (image/png in outputs)
+                if 'data' in output and 'image/png' in output['data']:
+                    has_plots = True
+                
+                # Check for text output
+                if output.get('output_type') in ['stream', 'execute_result']:
+                    has_output = True
+    
+    # Validation checks
+    if errors:
+        print(f"❌ FAILED: Notebook has errors:")
+        for error in errors:
+            print(f"  - {error}")
+        return False
+    
+    if not has_output:
+        print(f"⚠️  WARNING: Notebook has no output (did it run?)")
+        return False
+    
+    if not has_plots:
+        print(f"⚠️  WARNING: Notebook has no plots (expected visualizations)")
+        # Not a failure, but flag it
+    
+    print(f"✅ PASSED: Notebook executed successfully")
+    if has_plots:
+        print(f"  - Contains {sum(1 for _ in nb['cells'])} plots")
+    print(f"  - No errors detected")
+    
+    return True
+
+if __name__ == "__main__":
+    notebook_path = Path(sys.argv[1])
+    success = validate_notebook(notebook_path)
+    sys.exit(0 if success else 1)
+```
+
+### Phase Completion Checklist
+
+Before marking ANY phase as complete, verify:
+
+**Production Code:**
+- [ ] All Python files have docstrings
+- [ ] All functions have type hints
+- [ ] pytest tests pass
+- [ ] Code follows style guide
+
+**Analysis Notebooks:**
+- [ ] Notebooks execute without errors (`nbconvert --execute`)
+- [ ] Expected visualizations are present
+- [ ] Numbers/metrics are realistic (no NaN, no 10000% returns)
+- [ ] Markdown cells explain what's happening
+- [ ] HTML export successful (proves images render)
+
+**Validation:**
+```bash
+# Run this before declaring phase complete
+pytest tests/                              # Unit tests pass
+jupyter nbconvert --execute notebooks/phase1/*.ipynb  # Notebooks run
+python scripts/validate_notebook_outputs.py notebooks/phase1/*.ipynb  # Outputs valid
+```
+
+### Common Notebook Issues to Check
+
+**1. Missing Data**
+```python
+# BAD - Will crash if data missing
+df = fetch_data()
+df.plot()
+
+# GOOD - Handle missing data
+df = fetch_data()
+if df is None or len(df) == 0:
+    print("⚠️ No data available. Run backfill script first.")
+else:
+    df.plot()
+```
+
+**2. Hardcoded Paths**
+```python
+# BAD - Won't work on user's machine
+data = pd.read_csv('/home/claude/data.csv')
+
+# GOOD - Relative paths
+from pathlib import Path
+PROJECT_ROOT = Path(__file__).parent.parent
+data = pd.read_csv(PROJECT_ROOT / 'data' / 'processed' / 'features.csv')
+```
+
+**3. Missing Imports**
+```python
+# Make sure all imports are at the top
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Set plotting style
+sns.set_style('darkgrid')
+plt.rcParams['figure.figsize'] = (12, 6)
+```
+
+**4. Plots Not Displaying**
+```python
+# Always include this for notebooks
+%matplotlib inline
+
+# And explicit show() for complex plots
+fig, ax = plt.subplots()
+ax.plot(data)
+plt.show()
+```
+
+**5. Long-Running Cells**
+```python
+# Add progress indicators for slow operations
+from tqdm.auto import tqdm
+
+for symbol in tqdm(symbols, desc="Processing symbols"):
+    process(symbol)
+```
+
+### Reporting Test Results
+
+When you complete a phase, report:
+
+```
+Phase 1 Complete!
+
+✅ Production Code:
+  - data/ingestion/exchanges.py
+  - data/storage/timeseries_db.py
+  - data/processing/features.py
+  - All pytest tests passing (15/15)
+
+✅ Analysis Notebooks:
+  - notebooks/phase1/01_data_validation.ipynb
+    • Executed successfully
+    • Generated 4 plots (OHLCV, volume, feature distributions)
+    • Shows 2,160 rows of BTC/USDT data
+    • HTML report: reports/01_data_validation.html
+    
+  - notebooks/phase1/01b_feature_exploration.ipynb
+    • Executed successfully  
+    • Generated 8 plots (feature importance, correlations)
+    • Shows 127 features generated
+    • HTML report: reports/01b_feature_exploration.html
+
+✅ Validation:
+  - Data quality check: PASSED
+  - Database query test: PASSED
+  - Feature engineering test: PASSED
+
+📊 User Actions:
+  1. Review HTML reports in reports/ directory
+  2. Open notebooks in Jupyter if you want to explore interactively
+  3. Approve Phase 2 if satisfied
+
+Ready to proceed to Phase 2?
+```
+
+---
+
 ## Final Checklist Before Live Trading
 
 - [ ] Backtested on 1+ year of data
@@ -978,6 +1396,8 @@ Before deploying:
 - [ ] Starting with minimal capital ($1000-2000)
 - [ ] User has reviewed all core logic
 - [ ] Documentation is complete
+- [ ] All notebooks execute without errors
+- [ ] HTML reports generated for all phases
 
 ---
 

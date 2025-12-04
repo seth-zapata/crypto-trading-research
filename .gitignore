@@ -136,10 +136,13 @@ coverage.xml
 # JUPYTER NOTEBOOKS
 # -----------------------------------------------------------------------------
 .ipynb_checkpoints/
-*.ipynb
-!notebooks/*.ipynb.example
 
-# Jupyter output
+# Ignore notebooks everywhere EXCEPT in notebooks/ directory
+*.ipynb
+!notebooks/**/*.ipynb
+
+# Ignore executed/converted notebooks (generated files)
+*_executed.ipynb
 *.nbconvert.ipynb
 
 # -----------------------------------------------------------------------------
@@ -236,8 +239,9 @@ site/
 # Backtest results (can be regenerated)
 backtest_results/
 
-# Performance reports
-reports/
+# Performance reports (HTML exports from notebooks)
+reports/*
+!reports/.gitkeep
 
 # Temporary trading state
 state/
