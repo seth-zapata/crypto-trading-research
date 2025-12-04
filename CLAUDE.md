@@ -1369,6 +1369,81 @@ if __name__ == "__main__":
     sys.exit(0 if success else 1)
 ```
 
+### MANDATORY: Visual Verification of Notebook Charts
+
+**CRITICAL: You MUST visually inspect all chart/image outputs in notebooks, not just check that they executed.**
+
+After executing notebooks, extract and view all generated images:
+
+```python
+# Extract images from executed notebook
+import json
+import base64
+from pathlib import Path
+
+def extract_and_verify_images(notebook_path: str) -> None:
+    """Extract all images from notebook for visual verification."""
+    with open(notebook_path, 'r') as f:
+        nb = json.load(f)
+
+    for i, cell in enumerate(nb['cells']):
+        if cell.get('outputs'):
+            for j, output in enumerate(cell['outputs']):
+                data = output.get('data', {})
+                if 'image/png' in data:
+                    img_path = f"/tmp/nb_chart_{i}_{j}.png"
+                    with open(img_path, 'wb') as img_file:
+                        img_file.write(base64.b64decode(data['image/png']))
+                    print(f"Saved: {img_path}")
+
+# Then use the Read tool to view each image file
+```
+
+**What to verify in each chart:**
+
+1. **Price Charts:**
+   - Price range matches reported min/max values
+   - No gaps or discontinuities (unless expected)
+   - Trend direction looks realistic
+   - No flat lines or obvious data errors
+
+2. **Feature Distribution Histograms:**
+   - Returns: Should be centered around 0, roughly normal
+   - RSI: Must be bounded [0, 100]
+   - Volume ratio: Should be centered around 1.0
+   - Volatility: Should be right-skewed (volatility clusters)
+
+3. **Correlation Heatmaps:**
+   - Diagonal should be 1.0 (self-correlation)
+   - No impossible values (outside [-1, 1])
+   - Related features should show expected correlations
+
+4. **Time Series Plots:**
+   - X-axis dates should match expected range
+   - No impossible values (negative prices, etc.)
+   - Patterns should look realistic for the asset
+
+**Example verification workflow:**
+```bash
+# 1. Execute notebook
+jupyter nbconvert --execute notebook.ipynb
+
+# 2. Extract images
+python -c "from scripts.extract_images import extract_and_verify_images; extract_and_verify_images('notebook.ipynb')"
+
+# 3. View each image using the Read tool
+# Read /tmp/nb_chart_*.png files
+
+# 4. Verify each chart looks correct before committing
+```
+
+**DO NOT commit if charts show:**
+- Empty plots
+- Clearly wrong data (e.g., BTC at $500 in 2024)
+- Missing labels or titles
+- Truncated or cut-off visualizations
+- Error messages in plot area
+
 ### Phase Completion Checklist
 
 Before marking ANY phase as complete, verify:
@@ -1382,6 +1457,7 @@ Before marking ANY phase as complete, verify:
 **Analysis Notebooks:**
 - [ ] Notebooks execute without errors (`nbconvert --execute`)
 - [ ] Expected visualizations are present
+- [ ] **VISUALLY VERIFIED all chart outputs look correct** ← NEW
 - [ ] Numbers/metrics are realistic (no NaN, no 10000% returns)
 - [ ] Markdown cells explain what's happening
 - [ ] HTML export successful (proves images render)
