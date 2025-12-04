@@ -220,6 +220,110 @@ git push origin experiment-name
 
 ---
 
+## MANDATORY: End-of-Phase Workflow
+
+**CRITICAL: Notebooks are the GATE before committing. Do NOT commit/push code that hasn't been validated by working notebooks.**
+
+### The Correct Order
+
+```
+1. Write production code (.py files)
+2. Write pytest tests
+3. Run pytest → fix until passing
+4. Create/update phase notebooks
+5. Execute notebooks → debug until passing  ← GATE
+6. Validate notebook outputs
+7. ONLY THEN: git add, commit, push
+```
+
+### Why Notebooks Gate the Commit
+
+- Notebooks prove the code actually works end-to-end
+- If a notebook fails, the code is broken - don't push broken code
+- Notebooks catch integration issues pytest might miss
+- User reviews HTML reports AFTER push, so code must already work
+
+### Complete Phase Completion Workflow
+
+```bash
+# Step 1: Run pytest (must pass)
+pytest tests/ -v
+# If fails → fix code → rerun until pass
+
+# Step 2: Execute ALL phase notebooks (must pass)
+for nb in notebooks/phase1/*.ipynb; do
+  jupyter nbconvert --to notebook --execute \
+    --ExecutePreprocessor.timeout=600 \
+    "$nb" --output "${nb%.ipynb}_executed.ipynb"
+
+  # If this fails → DEBUG AND FIX → rerun
+done
+
+# Step 3: Validate notebook outputs
+python scripts/validate_notebook_outputs.py notebooks/phase1/*_executed.ipynb
+# Must show: "✅ All notebooks validated successfully!"
+
+# Step 4: Generate HTML reports
+for nb in notebooks/phase1/*_executed.ipynb; do
+  jupyter nbconvert --to html "$nb" --output-dir reports/
+done
+
+# Step 5: ONLY NOW commit and push
+git add .
+git status  # Review what's being committed
+git commit -m "feat(phase1): Complete data infrastructure
+
+- Implemented ExchangeDataIngester
+- Created TimescaleDB schema
+- Built feature engineering pipeline
+- All notebooks execute successfully
+- pytest: 15/15 passing
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+git push origin main
+
+# Step 6: Verify push succeeded
+git log --oneline -1
+git status  # Should show "up to date with origin/main"
+```
+
+### If Notebooks Fail
+
+**DO NOT COMMIT. Instead:**
+
+1. Read the error message
+2. Fix the underlying code (not just the notebook)
+3. Re-run the notebook
+4. Repeat until it passes
+5. Then proceed to commit
+
+**Example:**
+```
+❌ Notebook failed: KeyError 'mvrv_z_score'
+   ↓
+Fix: Update feature_engineering.py to include mvrv_z_score
+   ↓
+Re-run notebook
+   ↓
+✅ Notebook passes
+   ↓
+NOW commit both the .py fix AND the working notebook
+```
+
+### Checklist Before Every Push
+
+- [ ] `pytest tests/` passes (all green)
+- [ ] All phase notebooks execute without errors
+- [ ] `validate_notebook_outputs.py` shows all passed
+- [ ] HTML reports generated in `reports/`
+- [ ] Commit message describes what was built
+- [ ] `git push origin main` succeeds
+
+---
+
 ## Code Generation Standards
 
 ### File Structure
