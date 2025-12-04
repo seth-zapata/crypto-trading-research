@@ -485,6 +485,37 @@ Average position: **73.8%** (appropriately invested, not overly defensive)
 
 **Lesson:** For position sizing with existing signals (GNN probs), simple interpolation beats RL. RL may work better for learning FROM scratch, not refining existing signals.
 
+### Robust Validation (Monte Carlo)
+
+**CRITICAL UPDATE:** Single-path backtest was overly optimistic. Robust validation reveals:
+
+**Methods Applied:**
+1. Block bootstrap (1000 simulations, 20-day blocks)
+2. Walk-forward validation (5 splits)
+3. Stress tests (11 identified crisis periods)
+
+**Pass Criteria:**
+| Criterion | Target | Actual | Status |
+|-----------|--------|--------|--------|
+| 95th pctl Max DD | < 30% | **66.2%** | ✗ FAIL |
+| Walk-forward win rate | > 50% | **40%** | ✗ FAIL |
+| Stress test beat rate | ≥ 75% | **100%** | ✓ PASS |
+
+**Bootstrap Confidence Intervals (5th - 95th percentile):**
+- Return: [+112%, +6668%] - wide variance reflects crypto volatility
+- Sharpe: [0.44, 1.66]
+- Max DD: [31.6%, 66.2%] - **much worse than single-path 23.9%**
+
+**GNN Miss Rate:** 44% (was in RISK_ON during 44 of 100 crashes)
+
+**Honest Assessment:**
+- Single-path backtests hide crypto's extreme variance
+- Walk-forward shows strategy only beats B&H 40% of the time OOS
+- Stress test performance is strong (100% beat rate)
+- Strategy adds value during crashes but not consistently overall
+
+**Conclusion:** The continuous sizing approach is NOT robustly validated. It works in specific periods but fails to generalize reliably. This is an honest research finding - the strategy should be used with caution and sized appropriately.
+
 ### Files Created
 
 | File | Purpose |
@@ -493,10 +524,12 @@ Average position: **73.8%** (appropriately invested, not overly defensive)
 | `scripts/phase5_train_rl.py` | RL training (failed approach) |
 | `scripts/phase5_optimize_thresholds.py` | Grid search |
 | `scripts/phase5_final_optimization.py` | Continuous sizing optimization |
+| `scripts/phase5_robust_optimization.py` | Monte Carlo validation |
 | `models/predictors/position_sizer.py` | Production position sizer |
-| `config/position_sizing.json` | Optimal weights |
+| `config/position_sizing.json` | Optimal weights + validation metrics |
+| `notebooks/phase5/robust_optimization.png` | Visualization |
 
-*Status: Complete*
+*Status: Complete (with caveats - see Robust Validation)*
 
 ---
 

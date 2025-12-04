@@ -1,8 +1,22 @@
 {
-  "risk_on_weight": 0.85,
-  "caution_weight": 0.65,
-  "risk_off_weight": 0.3,
-  "validation_return": 19.37453076947464,
-  "validation_sharpe": 0.5408685875655911,
-  "validation_max_dd": 23.93108957250896
+  "risk_on_weight": 1.0,
+  "caution_weight": 0.5,
+  "risk_off_weight": 0.2,
+  "validation": {
+    "bootstrap_return_ci": [
+      112.46497759661622,
+      6668.307192684533
+    ],
+    "bootstrap_sharpe_ci": [
+      0.44394595003085513,
+      1.6570259252277428
+    ],
+    "bootstrap_max_dd_ci": [
+      31.556212105381533,
+      66.1544534012856
+    ],
+    "walk_forward_win_rate": 40.0,
+    "stress_test_beat_rate": 1.0,
+    "n_stress_periods": 11
+  }
 }
