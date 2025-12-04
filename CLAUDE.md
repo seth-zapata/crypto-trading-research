@@ -794,6 +794,43 @@ Choose: Option B (this is why we're building this system)
 
 ## Phase-by-Phase Implementation
 
+### IMPORTANT: Document Results After Each Phase
+
+After completing each phase, **update `RESULTS.md`** with:
+
+1. **Key metrics achieved** - Accuracy, Sharpe ratio, returns, etc.
+2. **Important parameter choices** - Why specific values were chosen
+3. **What worked/didn't work** - Lessons learned
+4. **Baseline numbers** - For comparison in later phases
+
+This takes ~10 minutes and provides critical reference material for:
+- Debugging when later phases cause regressions
+- Comparing improvements from new features
+- Diagnosing unexpected behavior in live trading
+- Remembering why decisions were made months later
+
+**Template:**
+```markdown
+## Phase N: [Name] (Month Year)
+
+**Data:** [Description of data used]
+**Model:** [Configuration summary]
+
+**Results:**
+| Metric | Value |
+|--------|-------|
+| Accuracy | X% |
+| Sharpe | X.XX |
+
+**Key decisions:**
+- [Decision 1 and why]
+- [Decision 2 and why]
+
+**Takeaway:** [One sentence summary]
+```
+
+---
+
 ### Week 1: Foundation
 
 **Goals:**
