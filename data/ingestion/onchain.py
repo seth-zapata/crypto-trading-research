@@ -97,14 +97,16 @@ class CoinMetricsProvider:
     async def fetch_mvrv(
         self,
         asset: str = "btc",
-        days_back: int = 365
+        days_back: int = 365,
+        start_date: Optional[str] = None
     ) -> pd.DataFrame:
         """
         Fetch MVRV and related metrics from CoinMetrics.
 
         Args:
             asset: Asset symbol (btc, eth)
-            days_back: Number of days of history
+            days_back: Number of days of history (ignored if start_date provided)
+            start_date: Optional start date string (YYYY-MM-DD) for full history
 
         Returns:
             DataFrame with time, mvrv, market_cap columns
@@ -112,39 +114,56 @@ class CoinMetricsProvider:
         """
         import aiohttp
 
+        # Use start_date if provided, otherwise calculate from days_back
+        if start_date:
+            start_time = start_date
+        else:
+            start_time = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
+
         # Only request free-tier metrics (CapRealUSD is paid-only)
         params = {
             "assets": asset,
             "metrics": "CapMVRVCur,CapMrktCurUSD",
             "frequency": "1d",
-            "start_time": (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d"),
+            "start_time": start_time,
+            "page_size": 10000,  # Get maximum data per request
         }
 
         url = f"{self.BASE_URL}/timeseries/asset-metrics"
+        all_rows = []
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params, timeout=30) as resp:
-                    resp.raise_for_status()
-                    data = await resp.json()
+                # Paginate through all results
+                while True:
+                    async with session.get(url, params=params, timeout=60) as resp:
+                        resp.raise_for_status()
+                        data = await resp.json()
 
-            rows = []
-            for item in data.get('data', []):
-                rows.append({
-                    'time': pd.to_datetime(item['time']),
-                    'mvrv': float(item.get('CapMVRVCur', 0)) if item.get('CapMVRVCur') else None,
-                    'market_cap': float(item.get('CapMrktCurUSD', 0)) if item.get('CapMrktCurUSD') else None,
-                })
+                    for item in data.get('data', []):
+                        all_rows.append({
+                            'time': pd.to_datetime(item['time']),
+                            'mvrv': float(item.get('CapMVRVCur', 0)) if item.get('CapMVRVCur') else None,
+                            'market_cap': float(item.get('CapMrktCurUSD', 0)) if item.get('CapMrktCurUSD') else None,
+                        })
 
-            df = pd.DataFrame(rows)
+                    # Check for next page
+                    next_page = data.get('next_page_url')
+                    if not next_page:
+                        break
+                    url = next_page
+                    params = {}  # URL already has params
+
+            df = pd.DataFrame(all_rows)
 
             if len(df) > 0:
-                # Calculate MVRV Z-Score locally
+                df = df.sort_values('time').reset_index(drop=True)
+                # Calculate MVRV Z-Score locally using rolling window
                 df['mvrv_zscore'] = (
                     (df['mvrv'] - df['mvrv'].rolling(365, min_periods=30).mean()) /
                     df['mvrv'].rolling(365, min_periods=30).std()
                 )
-                logger.info(f"Fetched {len(df)} MVRV records from CoinMetrics")
+                logger.info(f"Fetched {len(df)} MVRV records from CoinMetrics ({df['time'].min()} to {df['time'].max()})")
 
             return df
 

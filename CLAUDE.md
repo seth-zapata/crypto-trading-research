@@ -12,13 +12,14 @@ You are building a **production-grade cryptocurrency trading system** that uses 
 
 ### What Makes This System Different
 
-Unlike typical "AI trading bot" projects, this system is based on **validated research**:
-- **On-chain analytics** (75-82% directional accuracy in academic studies)
-- **Graph Neural Networks** for cross-asset modeling (2.2x Sharpe improvement)
-- **Filtered sentiment analysis** (+291% returns in bear markets)
-- **Hierarchical RL** (2.74 Sharpe vs 2.27 benchmark)
+**UPDATE (Dec 2024):** After rigorous backtesting, we pivoted from alpha generation to risk management. Academic research claims (75-82% accuracy) did NOT replicate in our tests. See RESULTS.md for details.
 
-These aren't speculative techniques - they have peer-reviewed validation. Your job is to implement them correctly.
+**Current Focus: Risk Management System**
+- **GNN for regime detection** - Identify RISK_ON/CAUTION/RISK_OFF states
+- **RL for position sizing** - Dynamic 0-100% exposure based on regime
+- **Defensive positioning** - Target <25% max drawdown vs BTC's 70%
+
+**Goal:** Match 70%+ of BTC returns while cutting drawdowns in half. We're not trying to predict the future - we're trying to survive it.
 
 ---
 
@@ -48,6 +49,15 @@ These aren't speculative techniques - they have peer-reviewed validation. Your j
 - Log errors with full context
 - Have fallback behavior (cached data, skip iteration, alert)
 - Never crash the main trading loop
+
+### 5. **Autonomy Guidelines**
+- Proceed without asking for routine operations (git commits, file edits, running tests)
+- Only ask for confirmation when:
+  - Critical design/implementation changes that affect architecture
+  - Operations requiring escalated permissions
+  - Irreversible operations (even considering version control)
+  - Decisions with significant cost implications (paid APIs, cloud resources)
+- For everything else: execute, report results, move forward
 
 ---
 
