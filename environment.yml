@@ -82,7 +82,7 @@ dependencies:
 
       # Technical Analysis
       - ta>=0.11  # Pure Python TA library (easier install than TA-Lib)
-      - pandas-ta>=0.3
+      # - pandas-ta>=0.3  # Commented out - compatibility issues, ta library sufficient
 
       # PyTorch Geometric (Graph Neural Networks)
       - torch-geometric>=2.4

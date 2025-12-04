@@ -20,11 +20,19 @@ binance:
     adjustForTimeDifference: true
     recvWindow: 10000
 
-# Secondary exchange (backup/additional liquidity)
+# Coinbase Advanced Trade API (primary for this project)
+# NOTE: Use 'coinbaseadvanced' class, NOT 'coinbase' or 'coinbaseexchange'
 coinbase:
+  exchange_class: coinbaseadvanced  # Critical: must use this class
   api_key: ${COINBASE_API_KEY}
   api_secret: ${COINBASE_API_SECRET}
-  enabled: false  # Enable when ready
+  # IMPORTANT: API secret is an EC private key in PEM format.
+  # If stored in .env without newlines, code must restore PEM format:
+  #   -----BEGIN EC PRIVATE KEY-----
+  #   [base64 content in 64-char lines]
+  #   -----END EC PRIVATE KEY-----
+  # See data/ingestion/exchanges.py fix_pem_format() function
+  enabled: true
   rate_limit: true
 
 # Alternative exchange

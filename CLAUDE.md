@@ -798,9 +798,25 @@ Choose: Option B (this is why we're building this system)
 
 **Goals:**
 - Database setup and working
-- Can fetch data from Binance
+- Can fetch data from Coinbase (using `coinbaseadvanced` class)
 - Can store OHLCV in TimescaleDB
 - Basic feature engineering
+
+**Critical Implementation Notes:**
+- Use `ccxt.coinbaseadvanced()` for Coinbase API (NOT `coinbase` or `coinbaseexchange`)
+- Coinbase API secret is EC private key in PEM format - must restore newlines if stored in .env:
+  ```python
+  def fix_pem_format(pem_string: str) -> str:
+      """Restore newlines in PEM-encoded key if missing."""
+      if '\n' in pem_string:
+          return pem_string
+      match = re.match(r'(-----BEGIN [^-]+-----)(.+)(-----END [^-]+-----)', pem_string)
+      if match:
+          header, content, footer = match.groups()
+          content_lines = [content[i:i+64] for i in range(0, len(content), 64)]
+          return header + '\n' + '\n'.join(content_lines) + '\n' + footer
+      return pem_string
+  ```
 
 **Validation:**
 ```bash
