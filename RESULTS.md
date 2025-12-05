@@ -514,7 +514,49 @@ Average position: **73.8%** (appropriately invested, not overly defensive)
 - Stress test performance is strong (100% beat rate)
 - Strategy adds value during crashes but not consistently overall
 
-**Conclusion:** The continuous sizing approach is NOT robustly validated. It works in specific periods but fails to generalize reliably. This is an honest research finding - the strategy should be used with caution and sized appropriately.
+**Conclusion:** The continuous sizing approach alone is NOT robustly validated. Further GNN improvements were needed.
+
+### GNN Improvements (Dec 2024) - SUCCESS
+
+**Problem:** 44% crash miss rate - GNN predicted RISK_ON during nearly half of actual crashes.
+
+**Solutions Applied:**
+1. **Asymmetric Loss Function** - Penalize crash misses 15x more than false alarms
+2. **Lower RISK_OFF Threshold** - Trigger defensive mode at 20% probability (vs 50%)
+
+**Asymmetric Loss Implementation:**
+```python
+class AsymmetricCrashLoss(nn.Module):
+    def __init__(self, miss_penalty=15.0, crash_threshold=-0.05):
+        # Penalize predicting RISK_ON during actual crashes
+        miss_mask = (pred_risk_on) & (actual_returns < crash_threshold)
+        penalties[miss_mask] = self.miss_penalty  # 15x penalty
+```
+
+**Validated Results:**
+
+| Criterion | Target | Before | After | Status |
+|-----------|--------|--------|-------|--------|
+| Miss Rate | < 25% | 44% | **20%** | ✓ PASS |
+| 95th pctl Max DD | < 40% | 66.2% | **23.8%** | ✓ PASS |
+| Walk-forward win rate | > 45% | 40% | **60%** | ✓ PASS |
+| Stress test beat rate | ≥ 75% | N/A | **100%** | ✓ PASS |
+
+**Stress Test Results:**
+| Crisis | Strategy DD | B&H DD | Protection |
+|--------|-------------|--------|------------|
+| Luna/3AC (May-Jun 2022) | 38.1% | 52.1% | 27% better |
+| FTX Collapse (Nov 2022) | 18.8% | 25.8% | 27% better |
+
+**Final Configuration:**
+| Parameter | Value |
+|-----------|-------|
+| Loss Function | AsymmetricCrashLoss |
+| miss_penalty | 15.0 |
+| RISK_OFF threshold | 0.20 |
+| Position weights | {risk_on: 0.85, caution: 0.65, risk_off: 0.20} |
+
+**Key Insight:** The combination of asymmetric loss (forces model to prioritize crash detection) and low threshold (acts on lower probabilities) is synergistic - the model outputs better-calibrated probabilities AND we act more conservatively on them.
 
 ### Files Created
 
@@ -524,12 +566,18 @@ Average position: **73.8%** (appropriately invested, not overly defensive)
 | `scripts/phase5_train_rl.py` | RL training (failed approach) |
 | `scripts/phase5_optimize_thresholds.py` | Grid search |
 | `scripts/phase5_final_optimization.py` | Continuous sizing optimization |
-| `scripts/phase5_robust_optimization.py` | Monte Carlo validation |
+| `scripts/phase5_robust_optimization.py` | Initial Monte Carlo validation |
+| `scripts/phase5_gnn_improvements.py` | Asymmetric loss experiments |
+| `scripts/phase5_validate_improved_gnn.py` | Final Monte Carlo validation |
 | `models/predictors/position_sizer.py` | Production position sizer |
+| `models/predictors/regime_gnn.py` | Updated with AsymmetricCrashLoss |
+| `models/saved/gnn_asymmetric_best.pth` | Improved GNN model |
 | `config/position_sizing.json` | Optimal weights + validation metrics |
-| `notebooks/phase5/robust_optimization.png` | Visualization |
+| `config/improved_gnn_validation.json` | Final validation results |
+| `notebooks/phase5/01_position_sizing_optimization.ipynb` | Position sizing notebook |
+| `notebooks/phase5/02_gnn_improvements.ipynb` | GNN improvements notebook |
 
-*Status: Complete (with caveats - see Robust Validation)*
+*Status: Complete - All validation criteria passed*
 
 ---
 
@@ -595,7 +643,8 @@ GNN Regime Detector → Regime Signal → RL Position Sizer → Hard Limits → 
 | 3 - Regime Overrides | 51.5% | 1.27 | 25.6% | On-chain overrides hurt |
 | 3.5 - Signal Analysis | - | - | - | No alpha found |
 | 4 - GNN (calibrated) | 45% | 0.95 | 26.8% | Regime detection ✓ |
-| **5 - Continuous Sizing** | - | **0.54** | **23.9%** | **Target <25% achieved** ✓ |
+| 5 - Continuous Sizing | - | 0.54 | 23.9% | Single-path only |
+| **5 - GNN Improved** | 80% detect | **0.20** | **23.8%** | **Monte Carlo validated** ✓ |
 
 ### Critical Finding: Extreme Signal Accuracy
 

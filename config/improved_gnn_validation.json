@@ -1,0 +1,121 @@
+{
+  "config": {
+    "miss_penalty": 15.0,
+    "risk_off_threshold": 0.2,
+    "position_weights": {
+      "risk_on": 0.85,
+      "caution": 0.65,
+      "risk_off": 0.2
+    },
+    "n_bootstrap": 1000,
+    "block_size": 20,
+    "n_walk_forward_splits": 5
+  },
+  "single_path": {
+    "miss_rate": 0.2,
+    "return": 4.057615671939918,
+    "max_dd": 13.612491416601488,
+    "sharpe": 0.2897704158528127
+  },
+  "bootstrap": {
+    "return_ci": [
+      -18.46966326756653,
+      23.526754186923746
+    ],
+    "max_dd_ci": [
+      4.427107097059873,
+      23.811583362814865
+    ],
+    "sharpe_median": 0.199369229007177
+  },
+  "walk_forward": {
+    "win_rate": 60.0,
+    "avg_miss_rate": 0.05714285714285714,
+    "folds": [
+      {
+        "fold": 1,
+        "train_end": 1002,
+        "val_samples": 200,
+        "strategy_return": 3.3931069436638372,
+        "strategy_dd": 4.239575603020695,
+        "strategy_sharpe": 0.6121743584026939,
+        "bh_return": 19.620460453555122,
+        "bh_dd": 20.057773342913187,
+        "beats_bh": "False",
+        "miss_rate": 0.0
+      },
+      {
+        "fold": 2,
+        "train_end": 1202,
+        "val_samples": 200,
+        "strategy_return": 48.4487922984784,
+        "strategy_dd": 5.481570358557242,
+        "strategy_sharpe": 3.7139907111581194,
+        "bh_return": 165.57374398985138,
+        "bh_dd": 15.888985848748668,
+        "beats_bh": "True",
+        "miss_rate": 0.0
+      },
+      {
+        "fold": 3,
+        "train_end": 1402,
+        "val_samples": 200,
+        "strategy_return": 6.597769902072437,
+        "strategy_dd": 6.715427340668456,
+        "strategy_sharpe": 0.6894888148542657,
+        "bh_return": -3.766348885348958,
+        "bh_dd": 24.49248904008139,
+        "beats_bh": "True",
+        "miss_rate": 0.0
+      },
+      {
+        "fold": 4,
+        "train_end": 1602,
+        "val_samples": 200,
+        "strategy_return": 8.439203037642784,
+        "strategy_dd": 14.375761740804998,
+        "strategy_sharpe": 0.7680994420404142,
+        "bh_return": 52.724443498812605,
+        "bh_dd": 28.14447811620788,
+        "beats_bh": "False",
+        "miss_rate": 0.2857142857142857
+      },
+      {
+        "fold": 5,
+        "train_end": 1802,
+        "val_samples": 200,
+        "strategy_return": -2.811855151809295,
+        "strategy_dd": 8.066725780095064,
+        "strategy_sharpe": -0.3996546146354419,
+        "bh_return": -16.79418831424583,
+        "bh_dd": 32.14698048461444,
+        "beats_bh": "True",
+        "miss_rate": 0.0
+      }
+    ]
+  },
+  "stress_test": {
+    "beat_rate": 1.0,
+    "results": [
+      {
+        "crisis": "Luna/3AC Crisis",
+        "days": 61,
+        "strategy_return": -37.47682586008835,
+        "strategy_dd": 38.13115781139112,
+        "bh_return": -47.541317417862274,
+        "bh_dd": 52.0946526163158,
+        "beats_bh": "True"
+      },
+      {
+        "crisis": "FTX Collapse",
+        "days": 30,
+        "strategy_return": -12.883506082515005,
+        "strategy_dd": 18.761194898847403,
+        "bh_return": -16.233625149087505,
+        "bh_dd": 25.821016344524377,
+        "beats_bh": "True"
+      }
+    ]
+  },
+  "all_criteria_passed": "True"
+}

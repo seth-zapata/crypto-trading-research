@@ -27,6 +27,89 @@ from torch_geometric.nn import GATConv, global_mean_pool
 logger = logging.getLogger(__name__)
 
 
+class AsymmetricCrashLoss(nn.Module):
+    """
+    Asymmetric loss function that heavily penalizes crash misses.
+
+    A "miss" is when the model predicts RISK_ON but a crash actually occurs.
+    This is far more costly than a "false alarm" (predicting RISK_OFF during normal market).
+
+    Args:
+        miss_penalty: Multiplier for crash misses (predicting RISK_ON during crash)
+        false_alarm_penalty: Multiplier for false alarms (unnecessary RISK_OFF)
+        crash_threshold: Return threshold to define a crash (default: -5%)
+    """
+
+    RISK_ON = 0
+    CAUTION = 1
+    RISK_OFF = 2
+
+    def __init__(
+        self,
+        miss_penalty: float = 10.0,
+        false_alarm_penalty: float = 1.0,
+        crash_threshold: float = -0.05,
+        class_weights: Optional[torch.Tensor] = None
+    ):
+        super().__init__()
+        self.miss_penalty = miss_penalty
+        self.false_alarm_penalty = false_alarm_penalty
+        self.crash_threshold = crash_threshold
+        self.class_weights = class_weights
+
+    def forward(
+        self,
+        predictions: torch.Tensor,
+        targets: torch.Tensor,
+        actual_returns: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """
+        Compute asymmetric loss.
+
+        Args:
+            predictions: Model logits [batch_size, num_classes]
+            targets: Ground truth labels [batch_size]
+            actual_returns: Actual returns for this period [batch_size]
+                           Used to identify crash periods for penalty
+
+        Returns:
+            Weighted loss tensor
+        """
+        # Base cross-entropy loss (per-sample, not reduced)
+        base_loss = F.cross_entropy(
+            predictions, targets,
+            weight=self.class_weights,
+            reduction='none'
+        )
+
+        # If no return data provided, use target-based heuristic
+        if actual_returns is None:
+            # Approximate: RISK_OFF targets indicate crash periods
+            crash_mask = (targets == self.RISK_OFF)
+        else:
+            # Use actual returns to identify crashes
+            crash_mask = actual_returns < self.crash_threshold
+
+        # Identify predictions
+        pred_classes = predictions.argmax(dim=1)
+
+        # Miss: Predicted RISK_ON but was actually a crash
+        miss_mask = (pred_classes == self.RISK_ON) & crash_mask
+
+        # False alarm: Predicted RISK_OFF but market was fine
+        # (We don't penalize this as heavily)
+        # false_alarm_mask = (pred_classes == self.RISK_OFF) & ~crash_mask
+
+        # Apply asymmetric penalties
+        penalties = torch.ones_like(base_loss)
+        penalties[miss_mask] = self.miss_penalty
+
+        # Compute weighted loss
+        weighted_loss = base_loss * penalties
+
+        return weighted_loss.mean()
+
+
 class RegimeGNN(nn.Module):
     """
     Graph Attention Network for regime detection.
@@ -256,7 +339,10 @@ class RegimeDetector:
         epochs: int = 100,
         lr: float = 0.001,
         batch_size: int = 32,
-        class_weights: Optional[List[float]] = None
+        class_weights: Optional[List[float]] = None,
+        train_returns: Optional[np.ndarray] = None,
+        use_asymmetric_loss: bool = False,
+        miss_penalty: float = 10.0
     ) -> Dict:
         """
         Train the GNN model.
@@ -270,6 +356,9 @@ class RegimeDetector:
             lr: Learning rate
             batch_size: Batch size
             class_weights: Optional class weights for imbalanced data
+            train_returns: Returns data for asymmetric loss calculation
+            use_asymmetric_loss: Whether to use crash-aware asymmetric loss
+            miss_penalty: Penalty multiplier for crash misses (default 10x)
 
         Returns:
             Training history dict
@@ -288,11 +377,19 @@ class RegimeDetector:
             counts = np.bincount(train_labels, minlength=3)
             weights = 1.0 / (counts + 1)
             weights = weights / weights.sum() * len(weights)
-            class_weights = torch.tensor(weights, dtype=torch.float32).to(self.device)
+            class_weights_tensor = torch.tensor(weights, dtype=torch.float32).to(self.device)
         else:
-            class_weights = torch.tensor(class_weights, dtype=torch.float32).to(self.device)
+            class_weights_tensor = torch.tensor(class_weights, dtype=torch.float32).to(self.device)
 
-        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        # Choose loss function
+        if use_asymmetric_loss:
+            criterion = AsymmetricCrashLoss(
+                miss_penalty=miss_penalty,
+                class_weights=class_weights_tensor
+            )
+            logger.info(f"Using AsymmetricCrashLoss with miss_penalty={miss_penalty}")
+        else:
+            criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode='min', patience=10, factor=0.5
@@ -319,7 +416,15 @@ class RegimeDetector:
 
                 optimizer.zero_grad()
                 logits = self.model(batch)
-                loss = criterion(logits, labels_tensor)
+
+                # Compute loss (with returns if using asymmetric loss)
+                if use_asymmetric_loss and train_returns is not None:
+                    batch_returns = train_returns[batch_idx]
+                    returns_tensor = torch.tensor(batch_returns, dtype=torch.float32).to(self.device)
+                    loss = criterion(logits, labels_tensor, returns_tensor)
+                else:
+                    loss = criterion(logits, labels_tensor)
+
                 loss.backward()
                 optimizer.step()
 

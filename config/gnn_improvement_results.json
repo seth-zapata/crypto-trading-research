@@ -1,0 +1,145 @@
+{
+  "baseline": {
+    "miss_rate": 0.4,
+    "detection_rate": 0.6,
+    "false_alarm_rate": 0.2557544757033248
+  },
+  "asymmetric_results": [
+    {
+      "penalty": 5.0,
+      "miss_rate": 0.6,
+      "detection_rate": 0.4,
+      "false_alarm_rate": 0.2813299232736573,
+      "avg_lead_time": 8.625,
+      "return": 32.710934781381276,
+      "sharpe": 0.8252715348530697,
+      "max_dd": 17.84350289955679
+    },
+    {
+      "penalty": 10.0,
+      "miss_rate": 0.3,
+      "detection_rate": 0.6,
+      "false_alarm_rate": 0.4219948849104859,
+      "avg_lead_time": 9.0,
+      "return": 32.30080593310512,
+      "sharpe": 0.9584549518910767,
+      "max_dd": 16.675465726398215
+    },
+    {
+      "penalty": 15.0,
+      "miss_rate": 0.6,
+      "detection_rate": 0.3,
+      "false_alarm_rate": 0.24040920716112532,
+      "avg_lead_time": 7.8,
+      "return": 3.0026437811677242,
+      "sharpe": 0.1934189494606866,
+      "max_dd": 16.67546572639824
+    },
+    {
+      "penalty": 20.0,
+      "miss_rate": 0.3,
+      "detection_rate": 0.6,
+      "false_alarm_rate": 0.309462915601023,
+      "avg_lead_time": 9.285714285714286,
+      "return": 44.367371747206995,
+      "sharpe": 1.1561801601502795,
+      "max_dd": 16.675465726398194
+    }
+  ],
+  "threshold_results": [
+    {
+      "threshold": 0.15,
+      "miss_rate": 0.3,
+      "detection_rate": 0.7,
+      "false_alarm_rate": 0.7621483375959079,
+      "avg_lead_time": 9.8,
+      "return": 27.917535070807453,
+      "sharpe": 0.862623689272205,
+      "max_dd": 16.675465726398226,
+      "pct_defensive": 89.52618453865337
+    },
+    {
+      "threshold": 0.2,
+      "miss_rate": 0.3,
+      "detection_rate": 0.7,
+      "false_alarm_rate": 0.659846547314578,
+      "avg_lead_time": 9.8,
+      "return": 42.57796350064113,
+      "sharpe": 1.0677467216024177,
+      "max_dd": 16.675465726398205,
+      "pct_defensive": 83.0423940149626
+    },
+    {
+      "threshold": 0.25,
+      "miss_rate": 0.3,
+      "detection_rate": 0.7,
+      "false_alarm_rate": 0.5396419437340153,
+      "avg_lead_time": 9.4,
+      "return": 58.34165322146681,
+      "sharpe": 1.2503256296755763,
+      "max_dd": 16.675465726398212,
+      "pct_defensive": 73.31670822942642
+    },
+    {
+      "threshold": 0.3,
+      "miss_rate": 0.4,
+      "detection_rate": 0.6,
+      "false_alarm_rate": 0.4143222506393862,
+      "avg_lead_time": 8.375,
+      "return": 93.09814960105642,
+      "sharpe": 1.6173375954022566,
+      "max_dd": 16.67546572639823,
+      "pct_defensive": 60.84788029925187
+    },
+    {
+      "threshold": 0.35,
+      "miss_rate": 0.4,
+      "detection_rate": 0.6,
+      "false_alarm_rate": 0.3145780051150895,
+      "avg_lead_time": 8.5,
+      "return": 69.64858021867913,
+      "sharpe": 1.2697079907184776,
+      "max_dd": 16.675465726398226,
+      "pct_defensive": 50.87281795511222
+    },
+    {
+      "threshold": 0.4,
+      "miss_rate": 0.4,
+      "detection_rate": 0.6,
+      "false_alarm_rate": 0.2557544757033248,
+      "avg_lead_time": 8.5,
+      "return": 54.80219477836632,
+      "sharpe": 1.0240149888622754,
+      "max_dd": 21.174962558181438,
+      "pct_defensive": 40.64837905236908
+    }
+  ],
+  "combined_results": [
+    {
+      "threshold": 0.15,
+      "miss_rate": 0.2,
+      "detection_rate": 0.8,
+      "return": 11.898617082374985,
+      "sharpe": 0.6346955580650727,
+      "max_dd": 11.490386086047351
+    },
+    {
+      "threshold": 0.2,
+      "miss_rate": 0.3,
+      "detection_rate": 0.7,
+      "return": 11.641861080858828,
+      "sharpe": 0.4995661298017383,
+      "max_dd": 16.67546572639825
+    },
+    {
+      "threshold": 0.25,
+      "miss_rate": 0.3,
+      "detection_rate": 0.7,
+      "return": 23.921517568528206,
+      "sharpe": 0.8210471618238054,
+      "max_dd": 16.675465726398226
+    }
+  ],
+  "best_config": "Combined(thresh=0.15)",
+  "best_miss_penalty": 10.0
+}
