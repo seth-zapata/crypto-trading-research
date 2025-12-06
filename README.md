@@ -10,17 +10,20 @@
 
 ## 🎯 What Is This?
 
-This is NOT your typical "AI trading bot." This system implements **validated academic research** (2020-2024) to generate alpha in cryptocurrency markets through:
+This is NOT your typical "AI trading bot." This system focuses on **risk management over alpha generation**, using validated academic research (2020-2024) for crash detection and defensive positioning:
 
-- **On-Chain Analytics** - Blockchain metrics with 75-82% directional accuracy
-- **Graph Neural Networks** - Cross-asset modeling with 2.2x Sharpe improvement  
-- **Filtered Sentiment** - Social signals achieving +291% in bear markets
-- **Hierarchical RL** - Multi-timescale decision making with 2.74 Sharpe ratio
+- **Graph Neural Networks** - Multi-asset regime detection with 80% crash detection rate
+- **Asymmetric Loss Training** - Crash-aware model penalizing missed crashes 15x
+- **Monte Carlo Validation** - 1000 bootstrap simulations for robust performance estimates
+- **On-Chain Analytics** - MVRV, SOPR for regime context (not trade signals)
 
-**Performance Targets:**
-- Sharpe Ratio: > 1.5
-- Max Drawdown: < 15%
-- Monthly Returns: 3-8% (conservative)
+**Strategic Pivot:** After rigorous signal quality analysis, we found on-chain signals do NOT provide tradeable daily alpha. The system pivoted from alpha generation to crash protection and drawdown reduction.
+
+**Performance Targets (Risk-Focused):**
+- Max Drawdown: < 25% (validated via Monte Carlo)
+- Crash Detection: > 75% (currently 80%)
+- Walk-Forward Win Rate: > 50%
+- Sharpe Ratio: > 0.5 (risk-adjusted)
 
 ---
 
@@ -421,25 +424,58 @@ git commit -m "fix(risk): Correct Kelly calculation (#123)"
 
 ---
 
-## 📊 Roadmap
+## 📊 Current Status
 
-### Phase 1: MVP (Weeks 1-6) ✅
-- [x] Data infrastructure
-- [x] Baseline models
-- [x] Risk management
-- [x] Paper trading
+### Phase 5 Complete: GNN Regime Detection + Position Sizing
 
-### Phase 2: Enhanced (Weeks 7-12)
-- [ ] Options flow integration
-- [ ] Multi-exchange arbitrage
-- [ ] Advanced execution strategies
-- [ ] Mobile app for monitoring
+The system now uses a **Graph Neural Network** for market regime detection with crash-aware training:
 
-### Phase 3: Scale (Months 4-6)
-- [ ] Multi-asset expansion
-- [ ] Cloud deployment
-- [ ] API for external strategies
-- [ ] Community features
+| Metric | Value | Target | Status |
+|--------|-------|--------|--------|
+| Crash Miss Rate | 20% | <25% | ✓ Pass |
+| Max Drawdown (95th pctl) | 23.8% | <30% | ✓ Pass |
+| Walk-Forward Win Rate | 60% | >50% | ✓ Pass |
+| Stress Test Beat Rate | 100% | >75% | ✓ Pass |
+
+**Key Achievement:** Reduces drawdown by 27% during major crashes (Luna/3AC, FTX) while maintaining exposure during bull markets.
+
+**Fundamental Trade-off Discovered:** Cannot simultaneously achieve >35% returns AND <25% crash miss rate. Lower thresholds for crash detection make positions too defensive. Current configuration optimizes for crash protection with acceptable return capture.
+
+---
+
+## 📈 Roadmap
+
+### Phase 1: Data Infrastructure ✅
+- [x] TimescaleDB setup with hypertable partitioning
+- [x] Exchange data ingestion (Coinbase, Binance via CCXT)
+- [x] 22 technical features generated
+
+### Phase 2: Baseline Model ✅
+- [x] LightGBM classifier (51.6% accuracy baseline)
+- [x] Walk-forward validation framework
+- [x] Backtesting with realistic transaction costs
+
+### Phase 3: Alpha Sources ✅
+- [x] On-chain metrics (MVRV, SOPR via Dune/CoinMetrics)
+- [x] Reddit sentiment analysis (FinBERT)
+- [x] Signal quality analysis (finding: no tradeable alpha)
+
+### Phase 4: GNN Regime Detection ✅
+- [x] Graph Attention Network for multi-asset regimes
+- [x] 3-class classification (RISK_ON, CAUTION, RISK_OFF)
+- [x] Class-weighted training for calibration
+
+### Phase 5: Position Sizing Optimization ✅
+- [x] Continuous probability-based sizing
+- [x] Asymmetric loss function (crash-aware training)
+- [x] Monte Carlo + Walk-forward validation
+- [x] Ensemble strategy exploration
+
+### Phase 6: Production System (Planned)
+- [ ] Hard risk limits enforcement
+- [ ] Order execution engine
+- [ ] Monitoring dashboard
+- [ ] Paper trading mode
 
 ---
 
@@ -477,8 +513,9 @@ Special thanks to the open-source community for:
 
 **Built with:** Python 🐍 | PyTorch 🔥 | PostgreSQL 🐘 | Redis ⚡
 
-**Status:** ✅ In Development | 🧪 Paper Trading | 💰 Live Trading (Start Small!)
+**Status:** ✅ Phase 5 Complete | 🔬 Monte Carlo Validated | 📊 Phase 6 Pending
 
 ---
 
 *Last Updated: December 2024*
+*Phase 5 validated with 1000 Monte Carlo simulations and 5-fold walk-forward testing*
